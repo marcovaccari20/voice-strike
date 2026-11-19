@@ -1,0 +1,5 @@
+node_modules/
+dist/
+# Das Sprachmodell (41 MB) holt `npm run modell` bzw. `npm run dev`.
+public/models/*.tar.gz
+public/models/*.teil

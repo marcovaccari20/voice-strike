@@ -1,0 +1,241 @@
+{
+  "version": 1,
+
+  "simulation": {
+    "stepMs": 10,
+    "maxCatchUpMs": 250
+  },
+
+  "match": {
+    "bestOf": 3,
+    "roundTimeMs": 90000,
+    "roundStartDelayMs": 2500,
+    "roundEndDelayMs": 3500
+  },
+
+  "fighter": {
+    "maxHealth": 100,
+    "maxStamina": 100,
+    "staminaRegenPerSecond": 12,
+    "staminaRegenDelayMs": 800,
+    "staminaRegenDelayFrom": "actionEnd",
+    "inputBufferMs": 600,
+    "bufferWhileIncapacitated": false,
+    "interruptStaggerMs": 200,
+    "allowControlChain": false
+  },
+
+  "block": {
+    "directionalBlock": true,
+    "mirrorDirections": true,
+    "perfectParryWindowMs": 350,
+    "parryStunMs": 1300,
+    "wrongDirectionDamageFactor": 0.5,
+    "wrongDirectionCostsDurability": true,
+    "endsOnParry": true
+  },
+
+  "speech": {
+    "penaltyWindowMs": 1200,
+    "penaltyStamina": 5
+  },
+
+  "commands": {
+    "strike": {
+      "word": "strike", "key": "KeyW", "label": "Schlag von oben",
+      "kind": "attack", "line": "high",
+      "staminaCost": 10, "usesWeapon": true,
+      "damageFromWeapon": true, "damage": 0,
+      "windupMs": 900, "activeMs": 0, "recoveryMs": 300,
+      "breaksBlock": false, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": ""
+    },
+    "left": {
+      "word": "left", "key": "KeyA", "label": "Schlag von links / Block links",
+      "kind": "attack", "line": "left",
+      "staminaCost": 10, "usesWeapon": true,
+      "damageFromWeapon": true, "damage": 0,
+      "windupMs": 1000, "activeMs": 0, "recoveryMs": 300,
+      "breaksBlock": false, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": ""
+    },
+    "right": {
+      "word": "right", "key": "KeyD", "label": "Schlag von rechts / Block rechts",
+      "kind": "attack", "line": "right",
+      "staminaCost": 10, "usesWeapon": true,
+      "damageFromWeapon": true, "damage": 0,
+      "windupMs": 1000, "activeMs": 0, "recoveryMs": 300,
+      "breaksBlock": false, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": ""
+    },
+    "block": {
+      "word": "block", "key": "KeyS", "label": "Blockhaltung",
+      "kind": "block", "line": "high",
+      "staminaCost": 8, "usesWeapon": false,
+      "damageFromWeapon": false, "damage": 0,
+      "windupMs": 0, "activeMs": 900, "recoveryMs": 0,
+      "breaksBlock": false, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": ""
+    },
+    "kick": {
+      "word": "kick", "key": "KeyK", "label": "Tritt, bricht den Block",
+      "kind": "attack", "line": "low",
+      "staminaCost": 15, "usesWeapon": false,
+      "damageFromWeapon": false, "damage": 5,
+      "windupMs": 950, "activeMs": 0, "recoveryMs": 300,
+      "breaksBlock": true, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 700, "knockdownMs": 0, "mimics": ""
+    },
+    "roll": {
+      "word": "roll", "key": "KeyR", "label": "Ausweichrolle",
+      "kind": "roll", "line": "none",
+      "staminaCost": 20, "usesWeapon": false,
+      "damageFromWeapon": false, "damage": 0,
+      "windupMs": 0, "activeMs": 500, "recoveryMs": 150,
+      "breaksBlock": false, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": ""
+    },
+    "sweep": {
+      "word": "sweep", "key": "KeyE", "label": "Beinfeger, trifft auch Rollende",
+      "kind": "attack", "line": "low",
+      "staminaCost": 15, "usesWeapon": false,
+      "damageFromWeapon": false, "damage": 5,
+      "windupMs": 950, "activeMs": 0, "recoveryMs": 300,
+      "breaksBlock": false, "stoppedByAnyBlock": true, "hitsRolling": true,
+      "stunMs": 0, "knockdownMs": 1400, "mimics": ""
+    },
+    "charge": {
+      "word": "charge", "key": "KeyC", "label": "Ansturm, bricht den Block",
+      "kind": "attack", "line": "high",
+      "staminaCost": 25, "usesWeapon": true,
+      "damageFromWeapon": false, "damage": 20,
+      "windupMs": 1400, "activeMs": 0, "recoveryMs": 400,
+      "breaksBlock": true, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": ""
+    },
+    "bluff": {
+      "word": "bluff", "key": "KeyB", "label": "Scheinangriff",
+      "kind": "feint", "line": "none",
+      "staminaCost": 6, "usesWeapon": false,
+      "damageFromWeapon": false, "damage": 0,
+      "windupMs": 0, "activeMs": 450, "recoveryMs": 0,
+      "breaksBlock": false, "stoppedByAnyBlock": false, "hitsRolling": false,
+      "stunMs": 0, "knockdownMs": 0, "mimics": "strike"
+    }
+  },
+
+  "activeWeapon": "sword",
+  "brokenWeapon": "fists",
+
+  "weapons": {
+    "sword": {
+      "label": "Schwert", "enabled": true,
+      "damage": 10, "windupFactor": 1.0, "staminaFactor": 1.0,
+      "blockValue": 0.75, "canParry": true, "durability": 100
+    },
+    "fists": {
+      "label": "Fäuste", "enabled": true,
+      "damage": 4, "windupFactor": 1.0, "staminaFactor": 1.0,
+      "blockValue": 0.5, "canParry": false, "durability": 0
+    },
+    "spear": {
+      "label": "Speer", "enabled": false,
+      "damage": 15, "windupFactor": 1.15, "staminaFactor": 1.2,
+      "blockValue": 0.6, "canParry": true, "durability": 80
+    },
+    "axe": {
+      "label": "Axt / Morgenstern", "enabled": false,
+      "damage": 20, "windupFactor": 1.4, "staminaFactor": 1.5,
+      "blockValue": 0.6, "canParry": true, "durability": 120
+    },
+    "swordShield": {
+      "label": "Schwert + Schild", "enabled": false,
+      "damage": 10, "windupFactor": 1.0, "staminaFactor": 1.1,
+      "blockValue": 0.9, "canParry": true, "durability": 160
+    },
+    "dualSwords": {
+      "label": "Zwei Schwerter", "enabled": false,
+      "damage": 10, "windupFactor": 0.85, "staminaFactor": 1.25,
+      "blockValue": 0.6, "canParry": true, "durability": 100
+    }
+  },
+
+  "bot": {
+    "defaultLevel": "medium",
+    "speechDelayMs": 450,
+    "speechJitterMs": 100,
+    "reactionMs": 250,
+    "reactionJitterMs": 80,
+    "parryLeadMs": 200,
+    "rollLeadMs": 250,
+    "combos": {
+      "afterSweep": ["strike"],
+      "afterBluff": ["strike", "left", "right", "kick"],
+      "afterBlock": ["strike"]
+    },
+    "levels": {
+      "easy": {
+        "label": "leicht",
+        "thinkMinMs": 1000, "thinkMaxMs": 2400,
+        "reactChance": 0.12, "correctCounterChance": 0.5, "timingChance": 0.0,
+        "punishChance": 0.1, "comboChance": 0.0,
+        "restBelowStamina": 15, "restUntilStamina": 40,
+        "adaptive": false, "adaptWindow": 8, "adaptMinSamples": 3, "adaptThreshold": 0.4, "adaptBoost": 3.0,
+        "attackWeights": { "strike": 4, "left": 3, "right": 3, "kick": 1, "sweep": 1, "charge": 1, "bluff": 0 }
+      },
+      "medium": {
+        "label": "mittel",
+        "thinkMinMs": 900, "thinkMaxMs": 2000,
+        "reactChance": 0.75, "correctCounterChance": 0.75, "timingChance": 0.3,
+        "punishChance": 0.5, "comboChance": 0.25,
+        "restBelowStamina": 20, "restUntilStamina": 50,
+        "adaptive": false, "adaptWindow": 8, "adaptMinSamples": 3, "adaptThreshold": 0.4, "adaptBoost": 3.0,
+        "attackWeights": { "strike": 3, "left": 3, "right": 3, "kick": 2, "sweep": 2, "charge": 1, "bluff": 0.5 }
+      },
+      "hard": {
+        "label": "schwer",
+        "thinkMinMs": 450, "thinkMaxMs": 1100,
+        "reactChance": 0.9, "correctCounterChance": 0.92, "timingChance": 0.85,
+        "punishChance": 0.9, "comboChance": 0.7,
+        "restBelowStamina": 25, "restUntilStamina": 55,
+        "adaptive": true, "adaptWindow": 8, "adaptMinSamples": 3, "adaptThreshold": 0.35, "adaptBoost": 3.0,
+        "attackWeights": { "strike": 3, "left": 3, "right": 3, "kick": 2, "sweep": 2, "charge": 1.5, "bluff": 1.5 }
+      }
+    }
+  },
+
+  "voice": {
+    "engine": "auto",
+    "language": "en-US",
+    "minConfidence": 0.5,
+    "commit": "final",
+    "partialStableMs": 120,
+    "vosk": {
+      "modelUrl": "models/vosk-model-small-en-us-0.15.tar.gz",
+      "feedMs": 30,
+      "loadTimeoutMs": 90000
+    },
+    "mic": {
+      "echoCancellation": false,
+      "noiseSuppression": true,
+      "autoGainControl": false
+    },
+    "vad": {
+      "calibrationMs": 2000,
+      "frameMs": 10,
+      "noisePercentile": 0.95,
+      "thresholdFactor": 3.0,
+      "minThreshold": 0.012,
+      "maxThreshold": 0.2,
+      "releaseFactor": 0.6,
+      "minSpeechMs": 120,
+      "maxGapMs": 40,
+      "endSilenceMs": 120,
+      "maxUtteranceMs": 1500
+    }
+  },
+
+  "input": {
+    "keyboardDelayMs": 0
+  }
+}

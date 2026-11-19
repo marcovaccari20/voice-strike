@@ -1,0 +1,30 @@
+{
+  "name": "voice-arena",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Voice Arena - spielbarer Browser-Prototyp fuer ein sprachgesteuertes 1-gegen-1-Kampfspiel",
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "modell": "node scripts/fetch-model.mjs",
+    "predev": "node scripts/fetch-model.mjs --leise",
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.combat.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "three": "^0.187.0",
+    "vosk-browser": "0.0.8"
+  },
+  "devDependencies": {
+    "@types/three": "^0.187.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
