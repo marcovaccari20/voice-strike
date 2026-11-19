@@ -49,6 +49,10 @@ export interface Pose {
   handLY: number;
   handLZ: number;
   grip: number;
+  // wohin die Schildflaeche zeigt (nur mit Schild)
+  shieldX: number;
+  shieldY: number;
+  shieldZ: number;
   // Knoechel
   footRX: number;
   footRY: number;
@@ -64,6 +68,7 @@ export const POSE_KEYS = [
   'torsoPitch', 'torsoYaw', 'torsoRoll', 'headPitch', 'headYaw',
   'handRX', 'handRY', 'handRZ', 'bladeX', 'bladeY', 'bladeZ',
   'handLX', 'handLY', 'handLZ', 'grip',
+  'shieldX', 'shieldY', 'shieldZ',
   'footRX', 'footRY', 'footRZ', 'footLX', 'footLY', 'footLZ',
 ] as const satisfies readonly (keyof Pose)[];
 
@@ -80,6 +85,7 @@ export const GUARD: Pose = {
   handRX: -0.16, handRY: 1.08, handRZ: 0.42,
   bladeX: 0.12, bladeY: 0.8, bladeZ: 0.58,
   handLX: 0.3, handLY: 1.02, handLZ: 0.12, grip: 0,
+  shieldX: 0.35, shieldY: 0.05, shieldZ: 0.93,
   footRX: -0.15, footRY: 0.07, footRZ: 0.2,
   footLX: 0.17, footLY: 0.07, footLZ: -0.18,
 };
@@ -331,6 +337,41 @@ const BLOCK_RIGHT = pose({
   handLX: 0.05, handLY: 1.15, handLZ: 0.42,
   footRX: -0.28, footRZ: 0.05, footLX: 0.14, footLZ: 0.12,
 });
+// Mit Schild blockt der linke Arm; das Schwert bleibt zurueckgenommen.
+const SHIELD_SWORD_BACK: P = {
+  handRX: -0.42, handRY: 1.0, handRZ: 0.08, bladeX: -0.25, bladeY: 0.9, bladeZ: 0.3, grip: 0,
+};
+/** Schild ueber den Kopf gehoben. */
+const SHIELD_BLOCK_HIGH = pose({
+  ...SHIELD_SWORD_BACK,
+  pelvisY: 0.8, torsoPitch: 0.05, torsoYaw: -0.25, headYaw: 0.2, headPitch: 0.15,
+  handLX: 0.06, handLY: 1.74, handLZ: 0.36, shieldX: 0, shieldY: 0.78, shieldZ: 0.62,
+  footRX: -0.2, footRZ: -0.1, footLX: 0.2, footLZ: 0.16,
+});
+/** Schild auf die linke Seite gestellt. */
+const SHIELD_BLOCK_LEFT = pose({
+  ...SHIELD_SWORD_BACK,
+  offX: 0.05, pelvisY: 0.82, torsoYaw: 0.35, headYaw: -0.25,
+  handLX: 0.5, handLY: 1.2, handLZ: 0.28, shieldX: 0.92, shieldY: 0.05, shieldZ: 0.38,
+  footRX: -0.14, footRZ: 0.12, footLX: 0.3, footLZ: 0.02,
+});
+/** Schild quer vor den Koerper auf die rechte Seite gezogen. */
+const SHIELD_BLOCK_RIGHT = pose({
+  ...SHIELD_SWORD_BACK,
+  offX: -0.05, pelvisY: 0.82, torsoYaw: -0.65, headYaw: 0.45,
+  handRX: -0.5, handRZ: -0.1,
+  handLX: -0.2, handLY: 1.22, handLZ: 0.5, shieldX: -0.78, shieldY: 0.05, shieldZ: 0.62,
+  footRX: -0.26, footRZ: -0.1, footLX: 0.14, footLZ: 0.2,
+});
+/** Wo der Schild getragen wird, relativ zum Becken. */
+const SHIELD_CARRY_X = 0.34;
+const SHIELD_CARRY_Y = 0.26;
+const SHIELD_CARRY_Z = 0.3;
+/** Ablaeufe, in denen der Schildarm die Trageposition haelt. */
+const SHIELD_CARRY_CLIPS: ReadonlySet<string> = new Set([
+  'idle', 'strike', 'left', 'right', 'kick', 'charge', 'stagger', 'victory',
+]);
+
 /** So schnell steht die Blockhaltung (ms). Reine Darstellung; die Regel gilt ab Befehl. */
 const BLOCK_SNAP_MS = 90;
 
@@ -415,6 +456,20 @@ function smooth01(u: number): number {
 
 /** Berechnet die Zielhaltung fuer den aktuellen Ablauf. */
 export function poseFor(input: FighterAnimInput, out: Pose): void {
+  basePose(input, out);
+  if (input.shield && !input.weaponBroken && SHIELD_CARRY_CLIPS.has(input.clip)) {
+    // Der Schildarm bleibt vor dem Koerper, was immer der Schwertarm tut.
+    out.grip = 0;
+    out.handLX = out.pelvisX + SHIELD_CARRY_X;
+    out.handLY = out.pelvisY + SHIELD_CARRY_Y;
+    out.handLZ = out.pelvisZ + SHIELD_CARRY_Z;
+    out.shieldX = GUARD.shieldX;
+    out.shieldY = GUARD.shieldY;
+    out.shieldZ = GUARD.shieldZ;
+  }
+}
+
+function basePose(input: FighterAnimInput, out: Pose): void {
   const p = input.progress;
   const clock = input.clockMs;
 
@@ -447,8 +502,13 @@ export function poseFor(input: FighterAnimInput, out: Pose): void {
     case 'block_high':
     case 'block_left':
     case 'block_right': {
+      const withShield = input.shield && !input.weaponBroken;
       const target =
-        input.clip === 'block_left' ? BLOCK_LEFT : input.clip === 'block_right' ? BLOCK_RIGHT : BLOCK_HIGH;
+        input.clip === 'block_left'
+          ? withShield ? SHIELD_BLOCK_LEFT : BLOCK_LEFT
+          : input.clip === 'block_right'
+            ? withShield ? SHIELD_BLOCK_RIGHT : BLOCK_RIGHT
+            : withShield ? SHIELD_BLOCK_HIGH : BLOCK_HIGH;
       mix(GUARD, target, smooth01(input.timeMs / BLOCK_SNAP_MS), out);
       return;
     }

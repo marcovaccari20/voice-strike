@@ -34,6 +34,7 @@ const FOREARM = 0.28;
 const THIGH = 0.46;
 const SHIN = 0.46;
 const BLADE_LENGTH = 0.92;
+const SHIELD_RADIUS = 0.3;
 /** Wie weit die linke Hand unter der rechten am Griff sitzt. */
 const GRIP_OFFSET = 0.13;
 /** Zeitkonstante, mit der die Figur ihrer Zielhaltung folgt (s). */
@@ -101,6 +102,7 @@ class PrimitiveFighter implements FighterVisual {
   private readonly footR: Mesh;
   private readonly footL: Mesh;
   private readonly sword = new Group();
+  private readonly shield = new Group();
 
   private readonly target = newPose();
   private readonly current = newPose();
@@ -125,6 +127,7 @@ class PrimitiveFighter implements FighterVisual {
   private readonly vHandR = new Vector3();
   private readonly vBlade = new Vector3();
   private readonly vPole = new Vector3();
+  private readonly vShield = new Vector3();
   private readonly vTmp = new Vector3();
 
   constructor(options: FighterVisualOptions) {
@@ -179,6 +182,24 @@ class PrimitiveFighter implements FighterVisual {
     this.sword.add(blade, guard, grip, pommel);
     this.body.add(this.sword);
 
+    // Rundschild: Scheibe, deren Achse (+Y) nach aussen zeigt; Ursprung an der Hand.
+    const faceGeo = new CylinderGeometry(SHIELD_RADIUS, SHIELD_RADIUS, 0.05, 28);
+    const rimGeo = new CylinderGeometry(SHIELD_RADIUS + 0.03, SHIELD_RADIUS + 0.03, 0.035, 28);
+    this.geometries.push(faceGeo, rimGeo);
+    const shieldFace = new Mesh(faceGeo, cloth);
+    shieldFace.position.y = 0.075;
+    shieldFace.castShadow = true;
+    const shieldRim = new Mesh(rimGeo, steel);
+    shieldRim.position.y = 0.06;
+    shieldRim.castShadow = true;
+    const boss = this.sphere(0.075, steel);
+    boss.position.y = 0.1;
+    boss.scale.y = 0.6;
+    const stripe = this.box(SHIELD_RADIUS * 1.9, 0.012, 0.07, accent);
+    stripe.position.y = 0.103;
+    this.shield.add(shieldRim, shieldFace, boss, stripe);
+    this.body.add(this.shield);
+
     this.root.add(this.body);
   }
 
@@ -196,7 +217,7 @@ class PrimitiveFighter implements FighterVisual {
       this.current[k] += delta * follow;
     }
 
-    this.applyPose(this.current, input.weaponBroken);
+    this.applyPose(this.current, input.weaponBroken, input.shield && !input.weaponBroken);
 
     const glow = Math.max(0, Math.min(1, input.flash));
     for (const m of this.materials) m.emissive.setScalar(glow * 0.9);
@@ -218,7 +239,9 @@ class PrimitiveFighter implements FighterVisual {
 
   getWeaponAnchor(out: Vector3): Vector3 {
     this.root.updateWorldMatrix(true, true);
-    out.copy(this.vHandR).addScaledVector(this.vBlade, 0.1 + BLADE_LENGTH * 0.45);
+    // Mit Schild wird dort geblockt, sonst an der Klinge.
+    if (this.shield.visible) out.copy(this.shield.position).addScaledVector(this.vShield, 0.1);
+    else out.copy(this.vHandR).addScaledVector(this.vBlade, 0.1 + BLADE_LENGTH * 0.45);
     return this.body.localToWorld(out);
   }
 
@@ -230,7 +253,7 @@ class PrimitiveFighter implements FighterVisual {
 
   // -------------------------------------------------------------------------
 
-  private applyPose(p: Pose, weaponBroken: boolean): void {
+  private applyPose(p: Pose, weaponBroken: boolean, withShield: boolean): void {
     // ganze Figur
     this.qBody.setFromEuler(this.euler.set(p.rotX, p.rotY, p.rotZ, 'YXZ'));
     this.vTmp.set(0, p.pivotY, 0).applyQuaternion(this.qBody);
@@ -283,7 +306,7 @@ class PrimitiveFighter implements FighterVisual {
     this.handL.scale.setScalar(fist);
 
     // linker Arm: frei oder am Griff unter der rechten Hand
-    const grip = weaponBroken ? 0 : Math.max(0, Math.min(1, p.grip));
+    const grip = weaponBroken || withShield ? 0 : Math.max(0, Math.min(1, p.grip));
     this.vTarget.set(p.handLX, p.handLY, p.handLZ);
     this.vTmp.copy(this.vHandR).addScaledVector(this.vBlade, -GRIP_OFFSET);
     this.vTarget.lerp(this.vTmp, grip);
@@ -292,6 +315,16 @@ class PrimitiveFighter implements FighterVisual {
     this.segment(this.upperArmL, this.vShoulderL, this.vJoint);
     this.segment(this.forearmL, this.vJoint, this.vEnd);
     this.handL.position.copy(this.vEnd);
+
+    // Schild an der linken Hand, Flaeche in die vorgegebene Richtung
+    this.shield.visible = withShield;
+    if (withShield) {
+      this.vShield.set(p.shieldX, p.shieldY, p.shieldZ);
+      if (this.vShield.lengthSq() < 1e-6) this.vShield.set(0, 0, 1);
+      this.vShield.normalize();
+      this.shield.position.copy(this.vEnd);
+      this.shield.quaternion.setFromUnitVectors(UP, this.vShield);
+    }
 
     // Beine: Knie nach vorn, leicht nach aussen
     this.vHipR.set(-HIP_X, 0, 0).applyQuaternion(this.qPelvis).add(this.vPelvis);

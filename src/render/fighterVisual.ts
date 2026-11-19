@@ -51,6 +51,8 @@ export interface FighterAnimInput {
   flash: number;
   /** Ohne Schwert: Faustkampf. */
   weaponBroken: boolean;
+  /** Traegt links einen Schild und blockt damit (Waffe "Schwert + Schild"). */
+  shield: boolean;
 }
 
 export interface FighterVisualOptions {

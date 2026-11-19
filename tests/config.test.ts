@@ -88,16 +88,20 @@ describe('Konfiguration: Werte der Vorgabe', () => {
     expect(c.weapons.fists.canParry).toBe(false);
   });
 
-  it('Waffentabelle ist vorbereitet, spielbar ist nur das Schwert', () => {
+  it('Waffentabelle ist vorbereitet; spielbar sind Schwert und Schwert + Schild', () => {
     expect(c.weapons.spear.damage).toBe(15);
     expect(c.weapons.axe.damage).toBe(20);
     expect(c.weapons.axe.windupFactor).toBeGreaterThan(1);
     expect(c.weapons.axe.staminaFactor).toBeGreaterThan(1);
-    expect(c.weapons.swordShield).toBeDefined();
     expect(c.weapons.dualSwords).toBeDefined();
-    for (const id of ['spear', 'axe', 'swordShield', 'dualSwords']) {
+    for (const id of ['spear', 'axe', 'dualSwords']) {
       expect(c.weapons[id].enabled).toBe(false);
     }
+    // Der Schild kam am 19.11.2026 auf Marcos Wunsch dazu; Vorgabe bleibt das Schwert.
+    expect(c.weapons.sword.enabled).toBe(true);
+    expect(c.weapons.swordShield.enabled).toBe(true);
+    expect(c.weapons.swordShield.shield).toBe(true);
+    expect(c.weapons.sword.shield).toBe(false);
   });
 
   it('Match und Sprechstrafe', () => {
@@ -154,6 +158,22 @@ describe('Konfiguration: Pruefung', () => {
     const raw = copy();
     raw.activeWeapon = 'axe';
     expect(() => parseConfig(raw)).toThrow(/activeWeapon/);
+  });
+
+  it('lehnt ein Ersatzwort ab, das schon einem anderen Befehl gehoert', () => {
+    const raw = copy();
+    raw.commands.kick.aliases = ['links'];
+    expect(() => parseConfig(raw)).toThrow(/commands\.kick\.aliases/);
+    const own = copy();
+    own.commands.kick.aliases = ['strike'];
+    expect(() => parseConfig(own)).toThrow(/commands\.kick\.aliases/);
+  });
+
+  it('jeder Befehl hat seine Liste von Ersatzwoertern', () => {
+    const config = parseConfig(copy());
+    for (const id of COMMAND_IDS) expect(Array.isArray(config.commands[id].aliases)).toBe(true);
+    expect(config.commands.left.aliases).toContain('links');
+    expect(config.commands.right.aliases).toContain('rechts');
   });
 
   it('nimmt ein geaendertes Befehlswort an', () => {

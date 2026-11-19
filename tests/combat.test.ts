@@ -519,6 +519,61 @@ describe('Waffenhaltbarkeit und Faustkampf', () => {
   });
 });
 
+describe('Schwert + Schild', () => {
+  const withShield = () =>
+    fightingSim((c) => {
+      c.activeWeapon = 'swordShield';
+    });
+
+  it('beide Kaempfer tragen den Schild und starten mit dessen Haltbarkeit', () => {
+    const sim = withShield();
+    const shield = sim.config.weapons.swordShield;
+    for (const f of sim.fighters) {
+      expect(f.weaponId).toBe('swordShield');
+      expect(f.durability).toBe(shield.durability);
+      expect(sim.weaponOf(f.id).shield).toBe(true);
+    }
+  });
+
+  it('ein normaler Block faengt den Anteil aus der Waffentabelle ab', () => {
+    const sim = withShield();
+    const c = sim.config;
+    const shield = c.weapons.swordShield;
+    sim.command(A, 'strike');
+    sim.advance(sim.windupOf(A, 'strike') - 500);
+    sim.command(D, 'block');
+    sim.advance(500);
+    const blocked = ofType(sim.drainEvents(), 'Blocked');
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0].damage).toBeCloseTo(shield.damage * (1 - shield.blockValue));
+    expect(sim.fighters[D].durability).toBe(shield.durability - shield.damage);
+  });
+
+  it('perfektes Parieren und Richtungsblock gelten unveraendert', () => {
+    const sim = withShield();
+    sim.command(A, 'left');
+    sim.advance(sim.windupOf(A, 'left') - 200);
+    sim.command(D, 'right');
+    sim.advance(200);
+    const events = sim.drainEvents();
+    expect(ofType(events, 'Parried')).toHaveLength(1);
+    expect(sim.fighters[A].state).toBe('paralyzed');
+  });
+
+  it('zerbricht der Schild samt Schwert, bleibt der Faustkampf', () => {
+    const sim = withShield();
+    const c = sim.config;
+    sim.fighters[D].durability = c.weapons.swordShield.damage;
+    sim.command(A, 'strike');
+    sim.advance(sim.windupOf(A, 'strike') - 500);
+    sim.command(D, 'block');
+    sim.advance(500);
+    expect(ofType(sim.drainEvents(), 'WeaponBroken')).toHaveLength(1);
+    expect(sim.fighters[D].weaponId).toBe(c.brokenWeapon);
+    expect(sim.weaponOf(D).shield).toBe(false);
+  });
+});
+
 describe('Befehlspuffer', () => {
   it('Befehl waehrend der eigenen Aktion startet danach, wenn er hoechstens 600 ms alt ist', () => {
     const sim = fightingSim();

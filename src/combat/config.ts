@@ -16,6 +16,12 @@ import {
 export interface CommandConfig {
   /** Gesprochenes Wort (klein geschrieben, Englisch wegen des Sprachmodells). */
   word: string;
+  /**
+   * Weitere Schreibweisen, die als dieses Wort gelten. Nur fuer Erkenner, die
+   * freien Text liefern (Web Speech API, Diktierfunktion); Vosk kennt durch
+   * seine Grammatik ohnehin nur die Befehlswoerter.
+   */
+  aliases: string[];
   /** Tastencode (KeyboardEvent.code), z. B. "KeyW". */
   key: string;
   label: string;
@@ -43,6 +49,8 @@ export interface CommandConfig {
 export interface WeaponConfig {
   label: string;
   enabled: boolean;
+  /** Der Kaempfer traegt links einen Schild und blockt damit. */
+  shield: boolean;
   damage: number;
   windupFactor: number;
   staminaFactor: number;
@@ -88,7 +96,7 @@ export interface BotConfig {
 }
 
 export interface VoiceConfig {
-  engine: 'auto' | 'vosk' | 'webspeech' | 'off';
+  engine: 'auto' | 'vosk' | 'webspeech' | 'dictation' | 'off';
   language: string;
   minConfidence: number;
   commit: 'final' | 'partial';
@@ -200,6 +208,19 @@ function oneOf<T extends string>(
   return v as T;
 }
 
+function wordList(parent: Json, key: string, path: string): string[] {
+  const v = parent[key];
+  if (!Array.isArray(v)) fail(`${path}${key}`, 'eine Liste von Wörtern', v);
+  const out: string[] = [];
+  for (const entry of v) {
+    if (typeof entry !== 'string' || entry.trim() === '') {
+      fail(`${path}${key}`, 'eine Liste nicht leerer Wörter', v);
+    }
+    out.push(entry.trim().toLowerCase());
+  }
+  return out;
+}
+
 function commandList(parent: Json, key: string, path: string): CommandId[] {
   const v = parent[key];
   if (!Array.isArray(v)) fail(`${path}${key}`, 'eine Liste von Befehlen', v);
@@ -223,6 +244,7 @@ function parseCommand(parent: Json, id: CommandId): CommandConfig {
   }
   const cmd: CommandConfig = {
     word: str(c, 'word', path).trim().toLowerCase(),
+    aliases: wordList(c, 'aliases', path),
     key: str(c, 'key', path),
     label: str(c, 'label', path),
     kind: oneOf(c, 'kind', path, KINDS),
@@ -254,6 +276,7 @@ function parseWeapon(parent: Json, id: string): WeaponConfig {
   return {
     label: str(w, 'label', path),
     enabled: bool(w, 'enabled', path),
+    shield: bool(w, 'shield', path),
     damage: num(w, 'damage', path, 0),
     windupFactor: num(w, 'windupFactor', path, 0.1),
     staminaFactor: num(w, 'staminaFactor', path, 0),
@@ -330,6 +353,15 @@ export function parseConfig(raw: unknown): CombatConfig {
     const otherKey = keys.get(commands[id].key);
     if (otherKey) fail(`commands.${id}.key`, `eine andere Taste als bei "${otherKey}"`, commands[id].key);
     keys.set(commands[id].key, id);
+  }
+
+  // Auch die Ersatzwoerter duerfen nirgends doppelt vorkommen.
+  for (const id of COMMAND_IDS) {
+    for (const alias of commands[id].aliases) {
+      const other = words.get(alias);
+      if (other) fail(`commands.${id}.aliases`, `ohne "${alias}" (gehört schon zu "${other}")`, alias);
+      words.set(alias, id);
+    }
   }
 
   const weapons: Record<string, WeaponConfig> = {};
@@ -416,7 +448,7 @@ export function parseConfig(raw: unknown): CombatConfig {
       levels,
     },
     voice: {
-      engine: oneOf(voice, 'engine', 'voice.', ['auto', 'vosk', 'webspeech', 'off'] as const),
+      engine: oneOf(voice, 'engine', 'voice.', ['auto', 'vosk', 'webspeech', 'dictation', 'off'] as const),
       language: str(voice, 'language', 'voice.'),
       minConfidence: num(voice, 'minConfidence', 'voice.', 0, 1),
       commit: oneOf(voice, 'commit', 'voice.', ['final', 'partial'] as const),

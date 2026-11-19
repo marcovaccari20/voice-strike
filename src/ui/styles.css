@@ -393,6 +393,39 @@ body {
   color: var(--gold);
 }
 
+.voice-heard {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Ohne eigenes Mikrofon (Diktierfunktion) gibt es keinen Pegel. */
+.hud.no-level .level-row {
+  display: none;
+}
+
+.voice-on {
+  font: inherit;
+  font-weight: 700;
+  margin-top: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  color: var(--text);
+  background: var(--primary);
+  border: 1px solid var(--primary-line);
+  border-radius: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.voice-on:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 .voice-status {
   margin-top: 6px;
   color: var(--dim);
@@ -531,11 +564,15 @@ body {
 
 /* ------------------------------------------------------------- Debug-Feld */
 
+/* Links unter der eigenen Tafel: Rechts braucht der Gegner den Platz, und
+   dort unten steht die Befehlsliste. Reicht die Hoehe nicht, rollt der Inhalt. */
 .debug {
   position: absolute;
-  right: var(--gutter-right);
+  left: var(--gutter-left);
   top: 132px;
   width: 270px;
+  max-height: calc(100% - 132px - 252px);
+  overflow: auto;
   font-size: 12px;
   pointer-events: auto;
 }
@@ -566,7 +603,7 @@ body {
 .debug-body {
   margin-top: 8px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .debug label {
@@ -828,6 +865,7 @@ body {
     top: 100px;
     width: auto;
     max-width: min(270px, calc(100% - var(--gutter-left) - var(--gutter-right)));
+    max-height: calc(100% - 100px - 190px);
   }
 
   .announce {

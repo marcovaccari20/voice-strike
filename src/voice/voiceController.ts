@@ -1,8 +1,15 @@
 // Verbindet Mikrofon, Pegelerkennung und Spracherkennung und meldet dem Spiel
 // genau zwei Dinge: "der Spieler beginnt zu sprechen" und "dieser Befehl wurde
 // erkannt". Dazu Anzeige-Werte (Pegel, Wort, Sicherheit, Verzoegerung).
+//
+// Zwei Betriebsarten:
+//  - mit eigenem Mikrofon (Vosk, Web Speech API): Die Seite misst den Pegel
+//    und erkennt daran den Sprechbeginn.
+//  - ohne (Diktierfunktion von claude.ai): Die Plattform haelt das Mikrofon
+//    und liefert nur Text. Sprechbeginn ist dann der erste Text.
 
 import { COMMAND_IDS, type CombatConfig, type CommandId } from '../combat';
+import { DictationEngine } from './dictationEngine';
 import { MicInput } from './micInput';
 import type { EngineId, EngineResult, SpeechEngine, VoiceState } from './types';
 import { VoiceActivityDetector } from './vad';
@@ -14,7 +21,7 @@ export interface RecognizedCommand {
   word: string;
   /** 0..1 oder -1, wenn unbekannt. */
   confidence: number;
-  /** ms vom Sprechbeginn bis zur Erkennung; -1, wenn kein Sprechbeginn zugeordnet ist. */
+  /** ms vom Sprechbeginn bis zur Erkennung; -1, wenn kein Sprechbeginn gemessen wurde. */
   latencyMs: number;
   /** Zeitpunkt des zugehoerigen Sprechbeginns (performance.now), -1 wenn unbekannt. */
   speechStartMs: number;
@@ -29,7 +36,7 @@ export interface VoiceCallbacks {
   onCommand(result: RecognizedCommand): void;
   /** Es wurde gesprochen, aber kein gueltiger Befehl erkannt. */
   onNoCommand(heard: string, reason: 'unknown' | 'lowConfidence'): void;
-  /** Vorlaeufig Gehoertes (nur Anzeige). */
+  /** Der gerade gehoerte Text, vorlaeufig oder endgueltig (nur Anzeige). */
   onHearing(text: string): void;
 }
 
@@ -37,6 +44,8 @@ const CALIBRATING_TEXT = 'Umgebungslärm wird gemessen – bitte kurz still sein
 
 interface Phrase {
   command: CommandId;
+  /** Das Befehlswort, wie es in der Anzeige steht. */
+  word: string;
   tokens: string[];
 }
 
@@ -58,28 +67,43 @@ export class VoiceController {
   private readonly mic = new MicInput();
   private readonly vad: VoiceActivityDetector;
   private readonly phrases: Phrase[];
+  /** Nur die Befehlswoerter selbst - die Grammatik fuer Vosk. */
+  private readonly vocabulary: string[];
   private engine: SpeechEngine | null = null;
 
-  /** Beginn der letzten Aeusserung (performance.now), -1 wenn keine offen. */
+  /** Beginn der letzten Aeusserung (performance.now), -1 wenn keiner gemessen wurde. */
   private speechStartMs = -1;
+  /** Ohne Pegel: Fuer die laufende Aeusserung wurde der Sprechbeginn schon gemeldet. */
+  private textSpeechOpen = false;
   /** Je Aeusserung der Engine: wie viele Befehle schon gemeldet wurden. */
   private consumedUtterance = -1;
   private consumedCount = 0;
   /** In der laufenden Aeusserung der Engine wurde ein Befehl gemeldet. */
   private utteranceHadCommand = false;
   /** Stabilitaetspruefung fuer vorlaeufige Ergebnisse. */
-  private partialText = '';
+  private partialSignature = '';
   private partialSinceMs = 0;
+  private partialFound: Found[] = [];
+  private partialTimer = 0;
+
+  private onCalibrated: (() => void) | null = null;
+  private loadingText = '';
 
   constructor(config: CombatConfig, callbacks: VoiceCallbacks) {
     this.config = config;
     this.callbacks = callbacks;
     this.vad = new VoiceActivityDetector(config.voice.vad);
+    const tokensOf = (text: string) => text.split(/\s+/).filter((t) => t !== '');
+    this.vocabulary = COMMAND_IDS.map((command) => tokensOf(config.commands[command].word).join(' '));
+    const phrases: Phrase[] = [];
+    for (const command of COMMAND_IDS) {
+      const def = config.commands[command];
+      for (const spelling of [def.word, ...def.aliases]) {
+        phrases.push({ command, word: def.word, tokens: tokensOf(spelling) });
+      }
+    }
     // Laengere Wortfolgen zuerst, damit "shield up" vor "up" greift.
-    this.phrases = COMMAND_IDS.map((command) => ({
-      command,
-      tokens: config.commands[command].word.split(/\s+/).filter((t) => t !== ''),
-    })).sort((a, b) => b.tokens.length - a.tokens.length);
+    this.phrases = phrases.sort((a, b) => b.tokens.length - a.tokens.length);
   }
 
   get threshold(): number {
@@ -90,10 +114,15 @@ export class VoiceController {
     return this.vad.noise;
   }
 
-  /** Mikrofon oeffnen, Laerm messen, Erkennung laden. */
+  /** Spracherkennung starten. Wirft mit lesbarer Meldung, wenn es nicht geht. */
   async start(preferred: CombatConfig['voice']['engine']): Promise<void> {
     this.stop();
     if (preferred === 'off') return;
+    if (preferred === 'dictation') {
+      // Kein `await` davor: Der Start muss noch im Klick des Nutzers liegen.
+      await this.startDictation();
+      return;
+    }
 
     this.setState('starting', 'Mikrofon wird geöffnet …');
     try {
@@ -135,22 +164,38 @@ export class VoiceController {
   }
 
   stop(): void {
+    window.clearTimeout(this.partialTimer);
     this.engine?.stop();
     this.engine = null;
     this.engineId = null;
     this.mic.onFrame = null;
     this.mic.stop();
     this.speechStartMs = -1;
+    this.textSpeechOpen = false;
     if (this.state !== 'off') this.setState('off', '');
   }
 
   // -------------------------------------------------------------------------
 
-  private onCalibrated: (() => void) | null = null;
-  private loadingText = '';
+  /** Diktierfunktion von claude.ai: kein eigenes Mikrofon, kein Pegel. */
+  private startDictation(): Promise<void> {
+    this.fallbackReason = '';
+    this.setState('starting', 'Diktierfunktion wird gestartet …');
+    const engine = new DictationEngine(this.config.voice.language);
+    return engine.start().then(
+      () => {
+        this.adopt(engine);
+        this.setState('listening', this.engineLabel);
+      },
+      (error: unknown) => {
+        engine.stop();
+        this.fail(error);
+        throw error;
+      },
+    );
+  }
 
   private async startEngine(preferred: CombatConfig['voice']['engine']): Promise<void> {
-    const vocabulary = this.phrases.map((p) => p.tokens.join(' '));
     const order: EngineId[] =
       preferred === 'webspeech' ? ['webspeech'] : preferred === 'vosk' ? ['vosk'] : ['vosk', 'webspeech'];
     let lastError: unknown = new Error('Keine Spracherkennung verfügbar.');
@@ -169,7 +214,7 @@ export class VoiceController {
         id === 'vosk' ? 'Sprachmodell wird geladen (beim ersten Mal rund 40 MB) …' : 'Web Speech API wird gestartet …';
       if (!this.vad.calibrating) this.setState('loading', this.loadingText);
       try {
-        await engine.start(vocabulary, this.mic.sampleRate);
+        await engine.start(this.vocabulary, this.mic.sampleRate);
       } catch (error) {
         engine.stop();
         lastError = error;
@@ -177,17 +222,21 @@ export class VoiceController {
         this.fallbackReason = error instanceof Error ? error.message : String(error);
         continue;
       }
-      engine.onResult = (result) => this.handleResult(result);
-      engine.onFailure = (message) => {
-        this.stop();
-        this.setState('error', message);
-      };
-      this.engine = engine;
-      this.engineId = engine.id;
-      this.engineLabel = engine.label;
+      this.adopt(engine);
       return;
     }
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  private adopt(engine: SpeechEngine): void {
+    engine.onResult = (result) => this.handleResult(result);
+    engine.onFailure = (message) => {
+      this.stop();
+      this.setState('error', message);
+    };
+    this.engine = engine;
+    this.engineId = engine.id;
+    this.engineLabel = engine.label;
   }
 
   private handleFrame(samples: Float32Array, rms: number, endMs: number, frameMs: number): void {
@@ -218,34 +267,58 @@ export class VoiceController {
       this.consumedUtterance = result.utterance;
       this.consumedCount = 0;
       this.utteranceHadCommand = false;
-      this.partialText = '';
+      this.partialSignature = '';
+      this.partialFound = [];
+      window.clearTimeout(this.partialTimer);
+    }
+
+    const heard = result.text.replace(/\[unk\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (heard !== '') this.callbacks.onHearing(heard);
+
+    // Ohne eigenes Mikrofon gibt es keinen Pegel: Der erste Text einer
+    // Aeusserung ist das frueheste Zeichen dafuer, dass gesprochen wird.
+    if (!this.engine?.usesPageMicrophone && heard !== '' && !this.textSpeechOpen) {
+      this.textSpeechOpen = true;
+      this.speechStartMs = -1;
+      this.callbacks.onSpeechStart(0);
     }
 
     const found = this.findCommands(result);
     const usePartial = this.config.voice.commit === 'partial' || (this.engine?.commitsOnPartial ?? false);
 
     if (!result.final) {
-      this.callbacks.onHearing(result.text);
       if (!usePartial) return;
       // Erst handeln, wenn sich das vorlaeufige Ergebnis nicht mehr aendert.
       const signature = found.map((f) => f.command).join(' ');
-      if (signature !== this.partialText) {
-        this.partialText = signature;
+      this.partialFound = found;
+      if (signature !== this.partialSignature) {
+        this.partialSignature = signature;
         this.partialSinceMs = now;
+        // Kommt kein weiteres Ergebnis nach, gilt es nach der Wartezeit trotzdem.
+        window.clearTimeout(this.partialTimer);
+        const utterance = result.utterance;
+        this.partialTimer = window.setTimeout(() => {
+          if (this.state !== 'listening' || this.consumedUtterance !== utterance) return;
+          this.emitNew(this.partialFound, performance.now(), false);
+        }, this.config.voice.partialStableMs);
+        return;
       }
       if (now - this.partialSinceMs < this.config.voice.partialStableMs) return;
       this.emitNew(found, now, false);
       return;
     }
 
+    window.clearTimeout(this.partialTimer);
     this.emitNew(found, now, true);
-    if (!this.utteranceHadCommand && result.text !== '') {
+    this.textSpeechOpen = false;
+    if (!this.utteranceHadCommand && heard !== '') {
       // Etwas gehoert, aber kein Befehl daraus geworden: unbekanntes Wort
       // oder ein Befehlswort unter der Mindestsicherheit.
       const tooUnsure = found.length > 0;
-      // "[unk]" ist Vosks Platzhalter fuer alles ausserhalb der Grammatik.
-      const heard = result.text.replace(/\[unk\]/g, ' ').replace(/\s+/g, ' ').trim() || 'unbekannt';
       this.callbacks.onNoCommand(heard, tooUnsure ? 'lowConfidence' : 'unknown');
+    } else if (!this.utteranceHadCommand && result.text !== '') {
+      // Nur "[unk]": Vosks Platzhalter fuer alles ausserhalb der Grammatik.
+      this.callbacks.onNoCommand('unbekannt', 'unknown');
     }
   }
 
@@ -299,7 +372,7 @@ export class VoiceController {
           confidence = 1;
           for (let k = 0; k < n; k++) confidence = Math.min(confidence, aligned[i + k].confidence);
         }
-        found.push({ command: phrase.command, word: phrase.tokens.join(' '), confidence });
+        found.push({ command: phrase.command, word: phrase.word, confidence });
         i += n;
         matched = true;
         break;

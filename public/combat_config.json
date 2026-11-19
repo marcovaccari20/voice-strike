@@ -42,7 +42,7 @@
 
   "commands": {
     "strike": {
-      "word": "strike", "key": "KeyW", "label": "Schlag von oben",
+      "word": "strike", "aliases": ["streik", "strikes", "schlag"], "key": "KeyW", "label": "Schlag von oben",
       "kind": "attack", "line": "high",
       "staminaCost": 10, "usesWeapon": true,
       "damageFromWeapon": true, "damage": 0,
@@ -51,7 +51,7 @@
       "stunMs": 0, "knockdownMs": 0, "mimics": ""
     },
     "left": {
-      "word": "left", "key": "KeyA", "label": "Schlag von links / Block links",
+      "word": "left", "aliases": ["links", "lift"], "key": "KeyA", "label": "Schlag von links / Block links",
       "kind": "attack", "line": "left",
       "staminaCost": 10, "usesWeapon": true,
       "damageFromWeapon": true, "damage": 0,
@@ -60,7 +60,7 @@
       "stunMs": 0, "knockdownMs": 0, "mimics": ""
     },
     "right": {
-      "word": "right", "key": "KeyD", "label": "Schlag von rechts / Block rechts",
+      "word": "right", "aliases": ["rechts", "write", "wright"], "key": "KeyD", "label": "Schlag von rechts / Block rechts",
       "kind": "attack", "line": "right",
       "staminaCost": 10, "usesWeapon": true,
       "damageFromWeapon": true, "damage": 0,
@@ -69,7 +69,7 @@
       "stunMs": 0, "knockdownMs": 0, "mimics": ""
     },
     "block": {
-      "word": "block", "key": "KeyS", "label": "Blockhaltung",
+      "word": "block", "aliases": ["blok", "blog", "blocken"], "key": "KeyS", "label": "Blockhaltung",
       "kind": "block", "line": "high",
       "staminaCost": 8, "usesWeapon": false,
       "damageFromWeapon": false, "damage": 0,
@@ -78,7 +78,7 @@
       "stunMs": 0, "knockdownMs": 0, "mimics": ""
     },
     "kick": {
-      "word": "kick", "key": "KeyK", "label": "Tritt, bricht den Block",
+      "word": "kick", "aliases": ["kik", "kicken", "tritt"], "key": "KeyK", "label": "Tritt, bricht den Block",
       "kind": "attack", "line": "low",
       "staminaCost": 15, "usesWeapon": false,
       "damageFromWeapon": false, "damage": 5,
@@ -87,7 +87,7 @@
       "stunMs": 700, "knockdownMs": 0, "mimics": ""
     },
     "roll": {
-      "word": "roll", "key": "KeyR", "label": "Ausweichrolle",
+      "word": "roll", "aliases": ["rolle", "role", "rollen"], "key": "KeyR", "label": "Ausweichrolle",
       "kind": "roll", "line": "none",
       "staminaCost": 20, "usesWeapon": false,
       "damageFromWeapon": false, "damage": 0,
@@ -96,7 +96,7 @@
       "stunMs": 0, "knockdownMs": 0, "mimics": ""
     },
     "sweep": {
-      "word": "sweep", "key": "KeyE", "label": "Beinfeger, trifft auch Rollende",
+      "word": "sweep", "aliases": ["swipe", "sweet", "feger"], "key": "KeyE", "label": "Beinfeger, trifft auch Rollende",
       "kind": "attack", "line": "low",
       "staminaCost": 15, "usesWeapon": false,
       "damageFromWeapon": false, "damage": 5,
@@ -105,7 +105,7 @@
       "stunMs": 0, "knockdownMs": 1400, "mimics": ""
     },
     "charge": {
-      "word": "charge", "key": "KeyC", "label": "Ansturm, bricht den Block",
+      "word": "charge", "aliases": ["church", "sturm"], "key": "KeyC", "label": "Ansturm, bricht den Block",
       "kind": "attack", "line": "high",
       "staminaCost": 25, "usesWeapon": true,
       "damageFromWeapon": false, "damage": 20,
@@ -114,7 +114,7 @@
       "stunMs": 0, "knockdownMs": 0, "mimics": ""
     },
     "bluff": {
-      "word": "bluff", "key": "KeyB", "label": "Scheinangriff",
+      "word": "bluff", "aliases": ["blaff", "bluf", "finte"], "key": "KeyB", "label": "Scheinangriff",
       "kind": "feint", "line": "none",
       "staminaCost": 6, "usesWeapon": false,
       "damageFromWeapon": false, "damage": 0,
@@ -129,32 +129,32 @@
 
   "weapons": {
     "sword": {
-      "label": "Schwert", "enabled": true,
+      "label": "Schwert", "enabled": true, "shield": false,
       "damage": 10, "windupFactor": 1.0, "staminaFactor": 1.0,
       "blockValue": 0.75, "canParry": true, "durability": 100
     },
     "fists": {
-      "label": "Fäuste", "enabled": true,
+      "label": "Fäuste", "enabled": true, "shield": false,
       "damage": 4, "windupFactor": 1.0, "staminaFactor": 1.0,
       "blockValue": 0.5, "canParry": false, "durability": 0
     },
     "spear": {
-      "label": "Speer", "enabled": false,
+      "label": "Speer", "enabled": false, "shield": false,
       "damage": 15, "windupFactor": 1.15, "staminaFactor": 1.2,
       "blockValue": 0.6, "canParry": true, "durability": 80
     },
     "axe": {
-      "label": "Axt / Morgenstern", "enabled": false,
+      "label": "Axt / Morgenstern", "enabled": false, "shield": false,
       "damage": 20, "windupFactor": 1.4, "staminaFactor": 1.5,
       "blockValue": 0.6, "canParry": true, "durability": 120
     },
     "swordShield": {
-      "label": "Schwert + Schild", "enabled": false,
-      "damage": 10, "windupFactor": 1.0, "staminaFactor": 1.1,
+      "label": "Schwert + Schild", "enabled": true, "shield": true,
+      "damage": 10, "windupFactor": 1.0, "staminaFactor": 1.0,
       "blockValue": 0.9, "canParry": true, "durability": 160
     },
     "dualSwords": {
-      "label": "Zwei Schwerter", "enabled": false,
+      "label": "Zwei Schwerter", "enabled": false, "shield": false,
       "damage": 10, "windupFactor": 0.85, "staminaFactor": 1.25,
       "blockValue": 0.6, "canParry": true, "durability": 100
     }

@@ -12,7 +12,7 @@ import {
 import { ArenaView, type ScreenPoint } from '../render/arenaView';
 import type { FighterVisualFactory } from '../render/fighterVisual';
 import { Hud } from '../ui/hud';
-import type { EngineId } from '../voice/types';
+import { prepareDictation } from '../voice/dictationEngine';
 import { VoiceController } from '../voice/voiceController';
 
 const PLAYER = 0;
@@ -40,6 +40,7 @@ export class Game {
   private directionalBlock: boolean;
   private botSpeechDelayMs: number;
   private keyboardDelayMs: number;
+  private weaponId: string;
 
   private readonly pendingKeys: PendingKey[] = [];
   /** Sprechbeginn (performance.now) des letzten Sprachbefehls, der noch auf seine Aktion wartet. */
@@ -52,6 +53,9 @@ export class Game {
     this.directionalBlock = config.block.directionalBlock;
     this.botSpeechDelayMs = config.bot.speechDelayMs;
     this.keyboardDelayMs = config.input.keyboardDelayMs;
+    this.weaponId = config.activeWeapon;
+    // Die Diktierfunktion muss beim Klick schon bereitstehen (siehe dictationEngine.ts).
+    if (config.voice.engine === 'dictation') prepareDictation();
     for (const id of COMMAND_IDS) this.keyToCommand.set(config.commands[id].key, id);
 
     this.view = new ArenaView(sceneHost, factory);
@@ -78,7 +82,12 @@ export class Game {
         this.keyboardDelayMs = ms;
       },
       onVoiceEngine: (engine) => void this.switchVoice(engine),
+      onVoiceOn: () => void this.switchVoice(this.preferredEngine()),
       onRecalibrate: () => this.voice.recalibrate(),
+      onWeapon: (weaponId) => {
+        this.weaponId = weaponId;
+        this.restart();
+      },
     });
     this.hud.setBotName(this.botLevel);
 
@@ -101,9 +110,7 @@ export class Game {
         this.hud.setHeard(heard);
         if (reason === 'lowConfidence') this.hud.showToast(`Zu unsicher erkannt: „${heard}“`);
       },
-      onHearing: () => {
-        // Vorlaeufiges wird nicht angezeigt: Es wechselt zu schnell, um lesbar zu sein.
-      },
+      onHearing: (text) => this.hud.setHearing(text),
     });
 
     this.session = this.createSession();
@@ -120,7 +127,9 @@ export class Game {
   private createSession(): CombatSession {
     // Startwert aus der Uhr: jeder Kampf anders, in sich aber wiederholbar.
     const seed = (Date.now() & 0x7fffffff) || 1;
-    const session = new CombatSession(this.config, { seed, bots: [null, this.botLevel] });
+    // Die gewaehlte Waffe gilt fuer beide Kaempfer.
+    const config = this.weaponId === this.config.activeWeapon ? this.config : { ...this.config, activeWeapon: this.weaponId };
+    const session = new CombatSession(config, { seed, bots: [null, this.botLevel] });
     session.sim.setDirectionalBlock(this.directionalBlock);
     const bot = session.bots[BOT];
     if (bot) bot.speechDelayMs = this.botSpeechDelayMs;
@@ -145,7 +154,8 @@ export class Game {
   private async startWithVoice(): Promise<void> {
     this.hud.setStartBusy(true);
     try {
-      await this.voice.start(this.config.voice.engine === 'off' ? 'auto' : this.config.voice.engine);
+      // Kein `await` vor diesem Aufruf: Die Diktierfunktion startet nur im Klick.
+      await this.voice.start(this.preferredEngine());
       this.hud.setEngine(this.voice.engineId ?? 'off');
       this.begin();
       this.announceFallback();
@@ -157,7 +167,11 @@ export class Game {
     }
   }
 
-  private async switchVoice(engine: EngineId | 'off'): Promise<void> {
+  private preferredEngine(): CombatConfig['voice']['engine'] {
+    return this.config.voice.engine === 'off' ? 'auto' : this.config.voice.engine;
+  }
+
+  private async switchVoice(engine: CombatConfig['voice']['engine']): Promise<void> {
     if (engine === 'off') {
       this.voice.stop();
       return;

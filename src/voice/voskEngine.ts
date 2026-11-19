@@ -59,6 +59,7 @@ export class VoskEngine implements SpeechEngine {
   readonly label = 'Vosk (lokal)';
   readonly needsAudio = true;
   readonly commitsOnPartial = false;
+  readonly usesPageMicrophone = true;
 
   onResult: ((result: EngineResult) => void) | null = null;
   onFailure: ((message: string) => void) | null = null;

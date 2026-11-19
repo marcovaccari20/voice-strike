@@ -59,6 +59,7 @@ export class WebSpeechEngine implements SpeechEngine {
   readonly label = 'Web Speech API (Dienst des Browsers, nicht lokal)';
   readonly needsAudio = false;
   readonly commitsOnPartial = true;
+  readonly usesPageMicrophone = true;
 
   onResult: ((result: EngineResult) => void) | null = null;
   onFailure: ((message: string) => void) | null = null;

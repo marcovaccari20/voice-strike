@@ -109,10 +109,16 @@ Vorgaben: Fehlt ein Wert, bricht das Laden mit dem genauen Pfad ab
 
 Vorbereitet sind Schwert, Speer, Axt/Morgenstern, Schwert + Schild und zwei
 Schwerter, jeweils mit Schaden, Aushol-Faktor, Ausdauer-Faktor, Blockwert,
-Parierfähigkeit und Haltbarkeit. **Aktiv und spielbar ist nur das Schwert**
-(`"enabled": true`); eine andere Waffe als `activeWeapon` lehnt die Prüfung ab.
-Schaden 15 (Speer) und 20 (Axt) stammen aus der Vorgabe. **Alle übrigen Werte der
-nicht spielbaren Waffen sind Platzhalter und nicht ausbalanciert.**
+Parierfähigkeit und Haltbarkeit. **Spielbar sind das Schwert (Vorgabe) und
+Schwert + Schild** (`"enabled": true`); die Waffe wählt man im Debug-Feld, das
+Match beginnt damit neu. Eine nicht freigegebene Waffe als `activeWeapon` lehnt
+die Prüfung ab.
+
+Mit Schild blockt die Figur sichtbar mit dem linken Arm; Regeln und Kosten sind
+dieselben wie beim Schwert, nur der Blockwert (0,9 statt 0,75: 10 % statt 25 %
+kommen durch) und die Haltbarkeit (160 statt 100) sind anders. **Diese beiden
+Werte und alle Werte der nicht spielbaren Waffen sind Platzhalter, nicht
+ausbalanciert.** Schaden 15 (Speer) und 20 (Axt) stammen aus der Vorgabe.
 
 ## Ergänzungen zur Vorgabe
 
@@ -134,7 +140,7 @@ entschieden – alles Schalter oder Werte in der Konfiguration:
 
 ## Sprache
 
-Hinter `SpeechEngine` (`src/voice/types.ts`) stecken zwei Umsetzungen:
+Hinter `SpeechEngine` (`src/voice/types.ts`) stecken drei Umsetzungen:
 
 1. **Vosk** (`vosk-browser`, kleines englisches Modell) – läuft vollständig lokal
    im Browser. Die Grammatik enthält nur die Befehlswörter plus `[unk]`.
@@ -142,7 +148,21 @@ Hinter `SpeechEngine` (`src/voice/types.ts`) stecken zwei Umsetzungen:
    der Ton dabei an einen Dienst des Herstellers: **nicht lokal**, braucht
    Internet. Das Spiel meldet, wenn der Ersatz läuft.
 
-`voice.engine`: `auto` (Vosk, sonst Ersatz), `vosk`, `webspeech` oder `off`.
+3. **Diktierfunktion von claude.ai** (`src/voice/dictationEngine.ts`) – nur für
+   die auf claude.ai veröffentlichte Seite. Dort bekommt eine Seite kein
+   Mikrofonsignal; die Plattform hört selbst zu und liefert nur Text. Folgen:
+   kein Pegel, also erscheint das „!" erst mit dem ersten erkannten Text;
+   keine Angabe zu Sicherheit und Verzögerung; nicht lokal; nur in Chrome oder
+   Edge am Rechner und im Hauptfenster der Desktop-App.
+
+Erkenner, die freien Text liefern (2 und 3), suchen die Befehle im Text. Dafür
+hat jeder Befehl Ersatzwörter (`commands.<befehl>.aliases`), etwa `links` für
+`left` oder `rolle` für `roll`. **Diese Listen sind Startwerte, nicht
+ausgemessen.** Das Sprachfeld zeigt unter „Gehört" wörtlich, was ankam – daran
+sieht man, welches Ersatzwort fehlt. Vosk braucht sie nicht.
+
+`voice.engine`: `auto` (Vosk, sonst Ersatz), `vosk`, `webspeech`, `dictation`
+oder `off`.
 Umschalten geht auch im Debug-Feld. Mit `off` zeigt das Startbild keinen
 Mikrofon-Knopf und das Debug-Feld keine Sprach-Einstellungen – für Orte, an
 denen es kein Mikrofon gibt.
@@ -203,7 +223,7 @@ gemessen.**
 
 ## Debug-Feld
 
-Oben rechts: Richtungsblock an/aus, Bot-Stufe, simulierte Sprechzeit des Bots,
+Links unter der eigenen Tafel: Richtungsblock an/aus, Bot-Stufe, Waffe, simulierte Sprechzeit des Bots,
 simulierte Sprechzeit der Tastatur (das „!" erscheint beim Tastendruck, der Befehl
 erst danach – so lässt sich die Sprachverzögerung mit der Tastatur nachstellen),
 Spracherkennung, Lärm neu messen, Neustart.
@@ -224,8 +244,8 @@ src/combat/                  Kampflogik – ohne Three.js, ohne Browser
   bot.ts                     Bot in drei Stufen
   rng.ts                     Zufall (xorshift32), wiederholbar
   session.ts                 Simulation + Bots im festen Takt
-src/render/                  Three.js: Arena, Figuren, Effekte
-src/voice/                   Mikrofon, Pegelerkennung, Vosk, Web Speech API
+src/render/                  Three.js: Arena mit Rängen und Publikum, Figuren, Effekte
+src/voice/                   Mikrofon, Pegelerkennung, Vosk, Web Speech API, Diktierfunktion
 src/ui/                      HUD, Debug-Feld, Start- und Schlussbild
 src/game/game.ts             verbindet alles
 tests/                       vitest, nur Kampflogik

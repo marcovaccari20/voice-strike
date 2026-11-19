@@ -16,7 +16,7 @@ import {
 } from 'three';
 import type { CombatEvent, CombatSim } from '../combat';
 import { resolveAnim } from './animState';
-import { buildArena } from './arena';
+import { buildArena, type ArenaScene } from './arena';
 import type { FighterAnimInput, FighterVisual, FighterVisualFactory } from './fighterVisual';
 import { createPrimitiveFighter } from './primitiveFighter';
 
@@ -57,8 +57,10 @@ export class ArenaView {
 
   // Schraeg hinter der rechten Schulter des Spielers: Er steht links im
   // Bild, der Gegner frei sichtbar rechts davon.
-  private readonly cameraBase = new Vector3(3.0, 2.75, FIGHTER_GAP / 2 + 3.0);
-  private readonly cameraTarget = new Vector3(-0.25, 0.95, -FIGHTER_GAP / 2 + 0.75);
+  // Der Blick geht nur leicht abwaerts, damit ueber der Mauer die Raenge im Bild sind.
+  private readonly cameraBase = new Vector3(3.0, 2.3, FIGHTER_GAP / 2 + 3.2);
+  private readonly cameraTarget = new Vector3(-0.25, 1.45, -FIGHTER_GAP / 2 + 0.75);
+  private readonly arena: ArenaScene;
 
   private readonly flash = [0, 0];
   private shake = 0;
@@ -77,6 +79,7 @@ export class ArenaView {
     clockMs: 0,
     flash: 0,
     weaponBroken: false,
+    shield: false,
   };
 
   constructor(host: HTMLElement, factory: FighterVisualFactory = createPrimitiveFighter) {
@@ -88,7 +91,7 @@ export class ArenaView {
     this.renderer.outputColorSpace = SRGBColorSpace;
     host.appendChild(this.renderer.domElement);
 
-    buildArena(this.scene);
+    this.arena = buildArena(this.scene);
 
     // Spieler vorn (blau), mit dem Ruecken zur Kamera; Gegner gegenueber (rot).
     const player = factory({ color: 0x2f6fb5, accent: 0xf2c14e });
@@ -125,6 +128,7 @@ export class ArenaView {
     for (const e of events) {
       switch (e.type) {
         case 'Hit':
+          this.arena.cheer(0.35);
           if (e.target >= 0) {
             this.flash[e.target] = 1;
             this.burst(this.fighters[e.target].getChestAnchor(this.tmp), COLOR_HIT, 12, 2.6);
@@ -138,11 +142,13 @@ export class ArenaView {
           }
           break;
         case 'Parried':
+          this.arena.cheer(0.6);
           if (e.fighter >= 0) {
             this.burst(this.fighters[e.fighter].getWeaponAnchor(this.tmp), COLOR_PARRY, 20, 3.4);
           }
           break;
         case 'GuardBroken':
+          this.arena.cheer(0.5);
           if (e.target >= 0) {
             this.burst(this.fighters[e.target].getWeaponAnchor(this.tmp), COLOR_HIT, 16, 3.2);
           }
@@ -154,7 +160,12 @@ export class ArenaView {
             this.burst(this.tmp, COLOR_DUST, 10, 1.6);
           }
           break;
+        case 'RoundEnd':
+        case 'MatchEnd':
+          this.arena.cheer(1);
+          break;
         case 'WeaponBroken':
+          this.arena.cheer(0.8);
           if (e.fighter >= 0) {
             this.burst(this.fighters[e.fighter].getWeaponAnchor(this.tmp), COLOR_BLOCK, 24, 3.6);
           }
@@ -183,11 +194,13 @@ export class ArenaView {
       this.anim.clockMs = this.clockMs + i * 700;
       this.anim.flash = this.flash[i];
       this.anim.weaponBroken = sim.fighters[i].weaponBroken;
+      this.anim.shield = sim.weaponOf(i).shield;
       if (resolved.clip !== 'ko') this.holdClip[i] = '';
       this.fighters[i].update(this.anim, dtSeconds);
     }
 
     this.updateParticles(dtSeconds);
+    this.arena.update(dtSeconds, this.clockMs);
 
     // Kamera schraeg hinter dem Spieler, bei Treffern kurz erschuettert.
     this.shake = Math.max(0, this.shake - dtSeconds / SHAKE_SECONDS);

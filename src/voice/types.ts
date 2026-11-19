@@ -20,7 +20,7 @@ export interface EngineResult {
   utterance: number;
 }
 
-export type EngineId = 'vosk' | 'webspeech';
+export type EngineId = 'vosk' | 'webspeech' | 'dictation';
 
 export interface SpeechEngine {
   readonly id: EngineId;
@@ -33,6 +33,12 @@ export interface SpeechEngine {
    * vorlaeufigen Ergebnissen genommen.
    */
   readonly commitsOnPartial: boolean;
+  /**
+   * true: Die Seite oeffnet selbst ein Mikrofon und erkennt den Sprechbeginn
+   * am Pegel. false: Die Engine liefert nur Text (Diktierfunktion); der
+   * Sprechbeginn ist dann der erste Text.
+   */
+  readonly usesPageMicrophone: boolean;
 
   /** Laedt, was noetig ist, und beginnt zuzuhoeren. Wirft bei Fehlschlag. */
   start(vocabulary: readonly string[], sampleRate: number): Promise<void>;

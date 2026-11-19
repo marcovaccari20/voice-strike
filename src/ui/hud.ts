@@ -30,7 +30,11 @@ export interface HudCallbacks {
   onBotSpeechDelay(ms: number): void;
   onKeyboardDelay(ms: number): void;
   onVoiceEngine(engine: EngineId | 'off'): void;
+  /** Spracherkennung (wieder) einschalten, mit der Engine aus der Konfiguration. */
+  onVoiceOn(): void;
   onRecalibrate(): void;
+  /** Andere Waffe gewaehlt; das Match beginnt damit neu. */
+  onWeapon(weaponId: string): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -93,6 +97,7 @@ export class Hud {
 
   private readonly commandRows = new Map<CommandId, HTMLElement>();
   private readonly commandLabels = new Map<CommandId, HTMLElement>();
+  private readonly commandCosts = new Map<CommandId, HTMLElement>();
   private directionAsBlock = false;
 
   private readonly startOverlay: HTMLElement;
@@ -105,6 +110,10 @@ export class Hud {
   private readonly engineSelect: HTMLSelectElement;
   /** false bei voice.engine = "off": dann gibt es keine Bedienelemente fuers Mikrofon. */
   private readonly voiceAllowed: boolean;
+  /** true bei voice.engine = "dictation": Sprache ueber claude.ai, ohne eigenes Mikrofon. */
+  private readonly dictationMode: boolean;
+  private readonly voiceHeard: HTMLElement;
+  private readonly voiceOnButton: HTMLButtonElement;
   private lastTimer = '';
   private lastRound = '';
 
@@ -112,7 +121,8 @@ export class Hud {
     this.config = config;
     this.callbacks = callbacks;
     this.voiceAllowed = config.voice.engine !== 'off';
-    this.root = el('div', 'hud voice-off');
+    this.dictationMode = config.voice.engine === 'dictation';
+    this.root = el('div', `hud voice-off${this.dictationMode ? ' no-level' : ''}`);
     host.appendChild(this.root);
 
     // --- oben: zwei Kaempfer, dazwischen die Uhr ---------------------------
@@ -155,15 +165,28 @@ export class Hud {
     lat.appendChild(el('span', '', 'Verzögerung'));
     this.voiceLatency = el('span', '', '–');
     lat.appendChild(this.voiceLatency);
-    const level = el('div', 'kv');
+    const heard = el('div', 'kv');
+    heard.appendChild(el('span', '', 'Gehört'));
+    this.voiceHeard = el('span', 'voice-heard', '–');
+    heard.appendChild(this.voiceHeard);
+    const level = el('div', 'kv level-row');
     level.appendChild(el('span', '', 'Mikrofonpegel'));
     level.appendChild(el('span', '', ''));
-    const meter = el('div', 'meter');
+    const meter = el('div', 'meter level-row');
     this.meterFill = el('div', 'meter-fill');
     this.meterMark = el('div', 'meter-mark');
     meter.append(this.meterFill, this.meterMark);
     this.voiceStatus = el('div', 'voice-status', 'Mikrofon aus – Tastatur aktiv');
-    voice.append(word, conf, lat, level, meter, this.voiceStatus);
+    // Einschalten per Klick: Die Diktierfunktion startet nur aus einem Klick,
+    // und nach "Stop" oder verdeckter Seite muss man sie wieder anwerfen koennen.
+    this.voiceOnButton = el('button', 'voice-on', 'Stimme einschalten');
+    this.voiceOnButton.type = 'button';
+    this.voiceOnButton.addEventListener('click', () => {
+      callbacks.onVoiceOn();
+      this.voiceOnButton.blur();
+    });
+    this.voiceOnButton.hidden = !this.voiceAllowed;
+    voice.append(word, conf, lat, heard, level, meter, this.voiceStatus, this.voiceOnButton);
     this.root.appendChild(voice);
 
     // --- Befehlsliste --------------------------------------------------------
@@ -184,10 +207,12 @@ export class Hud {
       row.appendChild(el('span', 'cmd-word', def.word));
       const label = el('span', 'cmd-label', def.label);
       row.appendChild(label);
-      row.appendChild(el('span', 'cmd-cost', String(def.staminaCost)));
+      const cost = el('span', 'cmd-cost', String(def.staminaCost));
+      row.appendChild(cost);
       commands.appendChild(row);
       this.commandRows.set(id, row);
       this.commandLabels.set(id, label);
+      this.commandCosts.set(id, cost);
     }
     this.root.appendChild(commands);
 
@@ -214,7 +239,13 @@ export class Hud {
       'Sobald jemand zu sprechen beginnt, erscheint über ihm ein rotes „!“ – noch bevor das Wort erkannt ist.',
       'Block: „block“ gegen den Schlag von oben. Gegen Seitenschläge die Seite sagen, auf der du den Schlag auf dem Bildschirm kommen siehst.',
     ];
-    if (this.voiceAllowed) {
+    if (this.dictationMode) {
+      hints.push(
+        'Wer spricht, ohne dass ein Befehl erkannt wird, verliert Ausdauer.',
+        'Die Stimme läuft hier über die Diktierfunktion von claude.ai: nur in Chrome oder Edge am Rechner und im Hauptfenster der Desktop-App, nicht am Handy. Beim ersten Start fragt claude.ai einmal um Erlaubnis. Der Ton geht an den Dienst von Anthropic.',
+        'Ohne Stimme geht es mit den Tasten oder durch Antippen der Befehlsliste.',
+      );
+    } else if (this.voiceAllowed) {
       hints.push(
         'Wer spricht, ohne dass ein Befehl erkannt wird, verliert Ausdauer.',
         'Beim Start mit Mikrofon wird 2 Sekunden lang der Umgebungslärm gemessen: bitte kurz still sein. Kopfhörer sind nicht nötig, das Spiel gibt keinen Ton aus.',
@@ -228,9 +259,9 @@ export class Hud {
     start.appendChild(list);
     const buttons = el('div', 'buttons');
     if (this.voiceAllowed) {
-      const voiceButton = el('button', 'primary', 'Mit Mikrofon starten');
+      const voiceButton = el('button', 'primary', this.dictationMode ? 'Mit Stimme starten' : 'Mit Mikrofon starten');
       voiceButton.addEventListener('click', () => callbacks.onStartVoice());
-      const keyButton = el('button', '', 'Nur mit Tastatur starten');
+      const keyButton = el('button', '', this.dictationMode ? 'Ohne Stimme starten' : 'Nur mit Tastatur starten');
       keyButton.addEventListener('click', () => callbacks.onStartKeyboard());
       buttons.append(voiceButton, keyButton);
       this.startButtons.push(voiceButton, keyButton);
@@ -297,7 +328,7 @@ export class Hud {
       const refs = this.fighters[i];
       this.setBar(refs.health, f.health / cfg.fighter.maxHealth, String(Math.ceil(f.health)));
       this.setBar(refs.stamina, f.stamina / cfg.fighter.maxStamina, String(Math.floor(f.stamina + 1e-6)));
-      const maxDurability = cfg.weapons[cfg.activeWeapon].durability;
+      const maxDurability = sim.config.weapons[sim.config.activeWeapon].durability;
       this.setBar(
         refs.weapon,
         maxDurability > 0 ? f.durability / maxDurability : 0,
@@ -327,6 +358,10 @@ export class Hud {
       const isDirection = def.kind === 'attack' && (def.line === 'left' || def.line === 'right');
       const cost = isDirection && asBlock ? sim.costOf(PLAYER, 'block') : sim.costOf(PLAYER, id);
       this.commandRows.get(id)?.classList.toggle('unaffordable', me.stamina + 1e-6 < cost);
+      // Die Kosten haengen von der Waffe ab und davon, ob left/right gerade blocken.
+      const shown = String(Math.round(cost * 10) / 10);
+      const costNode = this.commandCosts.get(id);
+      if (costNode && costNode.textContent !== shown) costNode.textContent = shown;
     }
     if (asBlock !== this.directionAsBlock) {
       this.directionAsBlock = asBlock;
@@ -452,9 +487,17 @@ export class Hud {
     this.voiceLatency.textContent = latencyMs >= 0 ? `${Math.round(latencyMs)} ms` : '–';
   }
 
+  /** Es wurde gesprochen, aber kein Befehl daraus. */
   setHeard(text: string): void {
-    this.voiceWord.textContent = text === '' ? '–' : `(${text})`;
+    this.voiceWord.textContent = '–';
     this.voiceConfidence.textContent = '–';
+    this.setHearing(text);
+  }
+
+  /** Was die Erkennung gerade gehoert hat, wörtlich. Zeigt, wie ein Wort ankommt. */
+  setHearing(text: string): void {
+    const shown = text.length > 34 ? `…${text.slice(-33)}` : text;
+    this.voiceHeard.textContent = shown === '' ? '–' : shown;
   }
 
   setVoiceState(state: VoiceState, detail: string): void {
@@ -470,6 +513,7 @@ export class Hud {
     this.voiceStatus.classList.toggle('error', state === 'error');
     // Auf schmalen Bildschirmen ist das Sprachfeld nur da, wenn das Mikrofon laeuft.
     this.root.classList.toggle('voice-off', state === 'off');
+    this.voiceOnButton.hidden = !this.voiceAllowed || (state !== 'off' && state !== 'error');
   }
 
   setEngine(engine: EngineId | 'off'): void {
@@ -615,6 +659,24 @@ export class Hud {
     levelLabel.appendChild(level);
     body.appendChild(levelLabel);
 
+    // Waffe: alles, was in der Tabelle freigegeben ist (ohne den Faustkampf).
+    const weaponLabel = el('label');
+    weaponLabel.appendChild(el('span', '', 'Waffe (startet das Match neu)'));
+    const weapon = el('select');
+    for (const id of Object.keys(cfg.weapons)) {
+      if (!cfg.weapons[id].enabled || id === cfg.brokenWeapon) continue;
+      const option = el('option', '', cfg.weapons[id].label);
+      option.value = id;
+      weapon.appendChild(option);
+    }
+    weapon.value = cfg.activeWeapon;
+    weapon.addEventListener('change', () => {
+      cb.onWeapon(weapon.value);
+      weapon.blur();
+    });
+    weaponLabel.appendChild(weapon);
+    body.appendChild(weaponLabel);
+
     // Simulierte Verzoegerungen
     const slider = (
       title: string,
@@ -646,11 +708,17 @@ export class Hud {
     // Spracherkennung
     const engineLabel = el('label');
     engineLabel.appendChild(el('span', '', 'Spracherkennung'));
-    for (const [value, text] of [
-      ['off', 'aus (nur Tastatur)'],
-      ['vosk', 'Vosk (lokal)'],
-      ['webspeech', 'Web Speech API (nicht lokal)'],
-    ] as const) {
+    const engines: readonly (readonly [EngineId | 'off', string])[] = this.dictationMode
+      ? [
+          ['off', 'aus (Tasten und Antippen)'],
+          ['dictation', 'Diktierfunktion von claude.ai'],
+        ]
+      : [
+          ['off', 'aus (nur Tastatur)'],
+          ['vosk', 'Vosk (lokal)'],
+          ['webspeech', 'Web Speech API (nicht lokal)'],
+        ];
+    for (const [value, text] of engines) {
       const option = el('option', '', text);
       option.value = value;
       this.engineSelect.appendChild(option);
@@ -674,7 +742,7 @@ export class Hud {
       cb.onRestart();
       restart.blur();
     });
-    if (this.voiceAllowed) row.appendChild(recal);
+    if (this.voiceAllowed && !this.dictationMode) row.appendChild(recal);
     row.appendChild(restart);
     body.appendChild(row);
 
