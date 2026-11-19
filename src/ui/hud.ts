@@ -22,6 +22,8 @@ const TOAST_MS = 1700;
 export interface HudCallbacks {
   onStartVoice(): void;
   onStartKeyboard(): void;
+  /** Ein Befehl wurde in der Befehlsliste angeklickt oder angetippt. */
+  onCommand(command: CommandId): void;
   onRestart(): void;
   onDirectionalBlock(on: boolean): void;
   onBotLevel(level: BotLevelId): void;
@@ -101,13 +103,16 @@ export class Hud {
   private readonly resultText: HTMLElement;
 
   private readonly engineSelect: HTMLSelectElement;
+  /** false bei voice.engine = "off": dann gibt es keine Bedienelemente fuers Mikrofon. */
+  private readonly voiceAllowed: boolean;
   private lastTimer = '';
   private lastRound = '';
 
   constructor(host: HTMLElement, config: CombatConfig, callbacks: HudCallbacks) {
     this.config = config;
     this.callbacks = callbacks;
-    this.root = el('div', 'hud');
+    this.voiceAllowed = config.voice.engine !== 'off';
+    this.root = el('div', 'hud voice-off');
     host.appendChild(this.root);
 
     // --- oben: zwei Kaempfer, dazwischen die Uhr ---------------------------
@@ -166,7 +171,15 @@ export class Hud {
     commands.appendChild(el('div', 'panel-title', 'Befehle (Wort · Taste · Ausdauer)'));
     for (const id of COMMAND_IDS) {
       const def = config.commands[id];
-      const row = el('div', 'cmd');
+      // Schaltflaeche: Die Zeile laesst sich auch anklicken oder antippen -
+      // am Handy gibt es weder Tastatur noch (ohne Freigabe) ein Mikrofon.
+      const row = el('button', 'cmd');
+      row.type = 'button';
+      row.addEventListener('pointerdown', (event) => {
+        // Kein Fokus auf der Zeile: Leertaste und Enter sollen sie nicht erneut ausloesen.
+        event.preventDefault();
+        callbacks.onCommand(id);
+      });
       row.appendChild(el('span', 'cmd-key', keyLabel(def.key)));
       row.appendChild(el('span', 'cmd-word', def.word));
       const label = el('span', 'cmd-label', def.label);
@@ -187,26 +200,47 @@ export class Hud {
     const start = el('div', 'panel start');
     start.appendChild(el('h1', '', 'VOICE ARENA'));
     start.appendChild(
-      el('p', '', 'Kämpfe per Stimme gegen einen Bot. Sprich eines der Befehlswörter (Englisch) – oder nimm zum Testen die Tastatur.'),
+      el(
+        'p',
+        '',
+        this.voiceAllowed
+          ? 'Kämpfe per Stimme gegen einen Bot. Sprich eines der Befehlswörter (Englisch) – oder nimm zum Testen die Tastatur.'
+          : 'Kämpfe gegen einen Bot. Gedacht ist das Spiel für die Stimme; hier steuerst du mit Tasten oder Fingertipp.',
+      ),
     );
     const list = el('ul');
-    for (const text of [
+    const hints = [
       'Best of 3, eine Runde dauert höchstens 90 Sekunden.',
       'Sobald jemand zu sprechen beginnt, erscheint über ihm ein rotes „!“ – noch bevor das Wort erkannt ist.',
       'Block: „block“ gegen den Schlag von oben. Gegen Seitenschläge die Seite sagen, auf der du den Schlag auf dem Bildschirm kommen siehst.',
-      'Wer spricht, ohne dass ein Befehl erkannt wird, verliert Ausdauer.',
-      'Beim Start mit Mikrofon wird 2 Sekunden lang der Umgebungslärm gemessen: bitte kurz still sein. Kopfhörer sind nicht nötig, das Spiel gibt keinen Ton aus.',
-    ]) {
+    ];
+    if (this.voiceAllowed) {
+      hints.push(
+        'Wer spricht, ohne dass ein Befehl erkannt wird, verliert Ausdauer.',
+        'Beim Start mit Mikrofon wird 2 Sekunden lang der Umgebungslärm gemessen: bitte kurz still sein. Kopfhörer sind nicht nötig, das Spiel gibt keinen Ton aus.',
+      );
+    } else {
+      hints.push('In dieser Fassung ist die Spracherkennung abgeschaltet: Befehle über die Tasten oder durch Antippen der Befehlsliste.');
+    }
+    for (const text of hints) {
       list.appendChild(el('li', '', text));
     }
     start.appendChild(list);
     const buttons = el('div', 'buttons');
-    const voiceButton = el('button', 'primary', 'Mit Mikrofon starten');
-    voiceButton.addEventListener('click', () => callbacks.onStartVoice());
-    const keyButton = el('button', '', 'Nur mit Tastatur starten');
-    keyButton.addEventListener('click', () => callbacks.onStartKeyboard());
-    buttons.append(voiceButton, keyButton);
-    this.startButtons.push(voiceButton, keyButton);
+    if (this.voiceAllowed) {
+      const voiceButton = el('button', 'primary', 'Mit Mikrofon starten');
+      voiceButton.addEventListener('click', () => callbacks.onStartVoice());
+      const keyButton = el('button', '', 'Nur mit Tastatur starten');
+      keyButton.addEventListener('click', () => callbacks.onStartKeyboard());
+      buttons.append(voiceButton, keyButton);
+      this.startButtons.push(voiceButton, keyButton);
+    } else {
+      // voice.engine = "off": kein Mikrofon-Knopf, der nur scheitern koennte.
+      const keyButton = el('button', 'primary', 'Starten');
+      keyButton.addEventListener('click', () => callbacks.onStartKeyboard());
+      buttons.appendChild(keyButton);
+      this.startButtons.push(keyButton);
+    }
     start.appendChild(buttons);
     this.startStatus = el('div', 'start-status');
     start.appendChild(this.startStatus);
@@ -434,6 +468,8 @@ export class Hud {
     };
     this.voiceStatus.textContent = text[state];
     this.voiceStatus.classList.toggle('error', state === 'error');
+    // Auf schmalen Bildschirmen ist das Sprachfeld nur da, wenn das Mikrofon laeuft.
+    this.root.classList.toggle('voice-off', state === 'off');
   }
 
   setEngine(engine: EngineId | 'off'): void {
@@ -538,6 +574,8 @@ export class Hud {
     const cfg = this.config;
     const cb = this.callbacks;
     const panel = el('div', 'panel debug');
+    // Auf dem Handy nimmt das aufgeklappte Feld den halben Bildschirm.
+    if (window.matchMedia('(max-width: 900px), (max-height: 520px)').matches) panel.classList.add('collapsed');
     const toggle = el('button', 'debug-toggle');
     toggle.append(el('span', '', 'Debug'), el('span', '', '▾'));
     toggle.addEventListener('click', () => {
@@ -623,7 +661,7 @@ export class Hud {
       this.engineSelect.blur();
     });
     engineLabel.appendChild(this.engineSelect);
-    body.appendChild(engineLabel);
+    if (this.voiceAllowed) body.appendChild(engineLabel);
 
     const row = el('div', 'row');
     const recal = el('button', '', 'Lärm neu messen');
@@ -636,7 +674,8 @@ export class Hud {
       cb.onRestart();
       restart.blur();
     });
-    row.append(recal, restart);
+    if (this.voiceAllowed) row.appendChild(recal);
+    row.appendChild(restart);
     body.appendChild(row);
 
     panel.appendChild(body);

@@ -54,6 +54,10 @@ Sprachmodell englisch ist.
 
 Enter startet nach dem Matchende neu.
 
+Die Befehlsliste im Spiel lässt sich auch anklicken oder antippen. Auf schmalen
+Bildschirmen (Handy) wird sie zum Tastenfeld am unteren Rand – dort gibt es keine
+Tastatur.
+
 ### Block
 
 * **Timing.** Beginnt die Blockhaltung höchstens 350 ms vor dem Einschlag, ist es
@@ -139,7 +143,9 @@ Hinter `SpeechEngine` (`src/voice/types.ts`) stecken zwei Umsetzungen:
    Internet. Das Spiel meldet, wenn der Ersatz läuft.
 
 `voice.engine`: `auto` (Vosk, sonst Ersatz), `vosk`, `webspeech` oder `off`.
-Umschalten geht auch im Debug-Feld.
+Umschalten geht auch im Debug-Feld. Mit `off` zeigt das Startbild keinen
+Mikrofon-Knopf und das Debug-Feld keine Sprach-Einstellungen – für Orte, an
+denen es kein Mikrofon gibt.
 
 **Sprechbeginn** erkennt `src/voice/vad.ts` über den Mikrofonpegel: beim Start
 2 s Umgebungslärm messen (bitte still sein), Schwelle = Lärm × `thresholdFactor`

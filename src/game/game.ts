@@ -58,6 +58,7 @@ export class Game {
     this.hud = new Hud(host, config, {
       onStartVoice: () => void this.startWithVoice(),
       onStartKeyboard: () => this.begin(),
+      onCommand: (command) => this.playerInput(command),
       onRestart: () => this.restart(),
       onDirectionalBlock: (on) => {
         this.directionalBlock = on;
@@ -193,7 +194,12 @@ export class Game {
     const command = this.keyToCommand.get(event.code);
     if (!command || !this.started) return;
     event.preventDefault();
+    this.playerInput(command);
+  }
 
+  /** Ein Befehl von Hand: Taste oder Fingertipp auf die Befehlsliste. */
+  private playerInput(command: CommandId): void {
+    if (!this.started) return;
     if (this.keyboardDelayMs <= 0) {
       this.hud.setRecognized(this.config.commands[command].word, -1, 0, true);
       this.voiceSpeechStartMs = -1;
