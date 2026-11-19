@@ -16,13 +16,19 @@ import {
 } from 'three';
 import type { CombatEvent, CombatSim } from '../combat';
 import { resolveAnim } from './animState';
-import { buildArena, type ArenaScene } from './arena';
+import { ARENA_HEIGHT, ARENA_OUTER_RADIUS, ARENA_TURN, buildArena, type ArenaScene } from './arena';
 import type { FighterAnimInput, FighterVisual, FighterVisualFactory } from './fighterVisual';
 import { createPrimitiveFighter } from './primitiveFighter';
 
 /** Abstand der beiden Kaempfer (m). Die Angriffshaltungen in poses.ts sind darauf abgestimmt. */
 export const FIGHTER_GAP = 2.5;
 const PLAYER = 0;
+
+/** Aussenansicht: Neigung und Oeffnungswinkel wie in der Vorlage (fast isometrisch). */
+const OVERVIEW_TILT_DEG = 32;
+const OVERVIEW_FOV = 28;
+/** So zuegig gleitet die Kamera zwischen den beiden Ansichten (s). */
+const CAMERA_GLIDE_SECONDS = 0.55;
 
 const FLASH_SECONDS = 0.22;
 const SHAKE_SECONDS = 0.28;
@@ -52,15 +58,26 @@ export class ArenaView {
 
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
-  private readonly camera = new PerspectiveCamera(46, 1, 0.1, 120);
+  private readonly camera = new PerspectiveCamera(46, 1, 0.1, 600);
   private readonly host: HTMLElement;
 
   // Schraeg hinter der rechten Schulter des Spielers: Er steht links im
   // Bild, der Gegner frei sichtbar rechts davon.
   // Der Blick geht nur leicht abwaerts, damit ueber der Mauer die Raenge im Bild sind.
   private readonly cameraBase = new Vector3(3.0, 2.3, FIGHTER_GAP / 2 + 3.2);
-  private readonly cameraTarget = new Vector3(-0.25, 1.45, -FIGHTER_GAP / 2 + 0.75);
+  private readonly cameraTarget = new Vector3(-0.25, 1.75, -FIGHTER_GAP / 2 + 0.75);
   private readonly arena: ArenaScene;
+
+  // Blick von aussen wie in der Vorlage: von vorn, schraeg von oben, langes
+  // Objektiv. 1 = Uebersicht, 0 = Kampf; der laufende Wert gleitet zum Ziel.
+  private overview = 1;
+  private overviewGoal = 1;
+  private readonly overviewPosition = new Vector3();
+  private readonly overviewTarget = new Vector3(0, 2.2, 0);
+  /** Um diesen Anteil der Bildbreite rueckt die Arena nach rechts (Platz fuer das Startbild). */
+  private overviewShift = 0;
+  private fightFov = 46;
+  private readonly lookAt = new Vector3();
 
   private readonly flash = [0, 0];
   private shake = 0;
@@ -117,10 +134,32 @@ export class ArenaView {
     const w = Math.max(1, this.host.clientWidth);
     const h = Math.max(1, this.host.clientHeight);
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    const aspect = w / h;
+    this.camera.aspect = aspect;
     // Im Hochformat weiter aufziehen, damit beide Figuren im Bild bleiben.
-    this.camera.fov = w / h < 1 ? 62 : 46;
-    this.camera.updateProjectionMatrix();
+    this.fightFov = aspect < 1 ? 62 : 46;
+
+    // Uebersicht: so weit weg, dass das ganze Bauwerk ins Bild passt.
+    const wide = aspect > 1.45;
+    this.overviewShift = wide ? 0.2 : 0;
+    const tilt = (OVERVIEW_TILT_DEG * Math.PI) / 180;
+    const span = 2 * Math.tan((OVERVIEW_FOV / 2) * (Math.PI / 180));
+    const needHeight = (2 * ARENA_OUTER_RADIUS * Math.sin(tilt) + ARENA_HEIGHT * Math.cos(tilt)) / 0.66;
+    const needWidth = (2 * ARENA_OUTER_RADIUS) / (wide ? 0.54 : 0.86);
+    const distance = Math.max(needHeight, needWidth / aspect) / span;
+    // Von der Vorderseite des Bauwerks, das gegen die Kampfachse gedreht steht.
+    const flat = Math.cos(tilt) * distance;
+    this.overviewPosition.set(Math.sin(ARENA_TURN) * flat, Math.sin(tilt) * distance + this.overviewTarget.y, Math.cos(ARENA_TURN) * flat);
+    this.applyCamera(0);
+  }
+
+  /** Von aussen auf die ganze Arena schauen oder hinter den Spieler gehen. */
+  setOverview(on: boolean): void {
+    this.overviewGoal = on ? 1 : 0;
+  }
+
+  setCrowdVisible(visible: boolean): void {
+    this.arena.setCrowdVisible(visible);
   }
 
   /** Ereignisse der Simulation in Effekte uebersetzen. */
@@ -205,14 +244,32 @@ export class ArenaView {
     // Kamera schraeg hinter dem Spieler, bei Treffern kurz erschuettert.
     this.shake = Math.max(0, this.shake - dtSeconds / SHAKE_SECONDS);
     const s = this.shake * this.shake * 0.09;
-    this.camera.position.set(
-      this.cameraBase.x + Math.sin(this.clockMs * 0.09) * s,
-      this.cameraBase.y + Math.cos(this.clockMs * 0.11) * s,
-      this.cameraBase.z,
-    );
-    this.camera.lookAt(this.cameraTarget);
+    this.overview += (this.overviewGoal - this.overview) * (1 - Math.exp(-dtSeconds / CAMERA_GLIDE_SECONDS));
+    if (Math.abs(this.overviewGoal - this.overview) < 0.0005) this.overview = this.overviewGoal;
+    this.applyCamera(s);
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Stellt die Kamera zwischen Kampf- und Aussenansicht ein. */
+  private applyCamera(shake: number): void {
+    const k = this.overview * this.overview * (3 - 2 * this.overview);
+    this.camera.position
+      .set(
+        this.cameraBase.x + Math.sin(this.clockMs * 0.09) * shake,
+        this.cameraBase.y + Math.cos(this.clockMs * 0.11) * shake,
+        this.cameraBase.z,
+      )
+      .lerp(this.overviewPosition, k);
+    this.lookAt.copy(this.cameraTarget).lerp(this.overviewTarget, k);
+    this.camera.lookAt(this.lookAt);
+    this.camera.fov = this.fightFov + (OVERVIEW_FOV - this.fightFov) * k;
+    const w = Math.max(1, this.host.clientWidth);
+    const h = Math.max(1, this.host.clientHeight);
+    const shift = this.overviewShift * k;
+    if (shift > 0.0005) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
+    else this.camera.clearViewOffset();
+    this.camera.updateProjectionMatrix();
   }
 
   /** Bildschirmposition ueber dem Kopf eines Kaempfers (CSS-Pixel im Host). */

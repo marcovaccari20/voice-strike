@@ -88,6 +88,8 @@ export class Game {
       onKeyboardDelay: (ms) => {
         this.keyboardDelayMs = ms;
       },
+      onOverview: (on) => this.view.setOverview(on),
+      onCrowd: (on) => this.view.setCrowdVisible(on),
       onWindupScale: (scale) => {
         this.windupScale = scale;
         this.session.sim.setWindupScale(scale);
@@ -153,6 +155,9 @@ export class Game {
     this.hud.hideStart();
     this.restart();
     this.started = true;
+    // Vom Blick auf die ganze Arena hinter den eigenen Kaempfer.
+    this.view.setOverview(false);
+    this.hud.setOverview(false);
   }
 
   private restart(): void {

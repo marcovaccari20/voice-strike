@@ -248,9 +248,25 @@ Gemessen in Bot-gegen-Bot-Matches (je 30): schwer schlägt mittel 30:0, mittel
 schlägt leicht 30:0. **Wie stark die Stufen gegen einen Menschen sind, ist nicht
 gemessen.**
 
+## Arena
+
+Ein Amphitheater aus Sandstein, nachgebaut nach Marcos Bildvorlage vom
+19.11.2026 (`src/render/arena.ts`, alles aus Grundformen, keine Dateien):
+Sandplatz, Podiumsmauer mit Bannern und Gittertor, sieben Sitzstufen mit
+Treppen, offene Bogengalerie mit Decksteinen und Fahnen, aussen ein Geschoss
+Blendbogen mit vier Holztoren, die Loge mit Thron, zwei Waffenständer.
+
+* Das Startbild zeigt die Arena **von aussen** im Blickwinkel der Vorlage;
+  beim Start gleitet die Kamera hinter den eigenen Kämpfer. Im Debug-Feld
+  holt „Arena von aussen ansehen" die Aussenansicht jederzeit zurück.
+* Das Bauwerk steht um 40° gegen die Kampfachse gedreht, damit die Loge in der
+  Kampfansicht rechts hinter dem Gegner im Bild ist (`ARENA_TURN`).
+* Die Vorlage zeigt leere Ränge. Das Publikum ist trotzdem an (Marcos Wunsch
+  von vorher) und lässt sich im Debug-Feld ausschalten.
+
 ## Debug-Feld
 
-Links unter der eigenen Tafel: Richtungsblock an/aus, Bot-Stufe, Waffe, Aushol-Zeit, simulierte Sprechzeit des Bots,
+Links unter der eigenen Tafel: Richtungsblock an/aus, Arena von aussen, Publikum, Bot-Stufe, Waffe, Aushol-Zeit, simulierte Sprechzeit des Bots,
 simulierte Sprechzeit der Tastatur (das „!" erscheint beim Tastendruck, der Befehl
 erst danach – so lässt sich die Sprachverzögerung mit der Tastatur nachstellen),
 Spracherkennung, Lärm neu messen, Neustart.
@@ -271,7 +287,7 @@ src/combat/                  Kampflogik – ohne Three.js, ohne Browser
   bot.ts                     Bot in drei Stufen
   rng.ts                     Zufall (xorshift32), wiederholbar
   session.ts                 Simulation + Bots im festen Takt
-src/render/                  Three.js: Arena mit Rängen und Publikum, Figuren, Effekte
+src/render/                  Three.js: Amphitheater mit Publikum, Figuren, Effekte
 src/voice/                   Mikrofon, Pegelerkennung, Vosk, Web Speech API, Diktierfunktion
 src/ui/                      HUD, Debug-Feld, Start- und Schlussbild
 src/game/game.ts             verbindet alles

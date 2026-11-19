@@ -31,6 +31,10 @@ export interface HudCallbacks {
   onKeyboardDelay(ms: number): void;
   /** Faktor auf alle Aushol-Zeiten. */
   onWindupScale(scale: number): void;
+  /** Arena von aussen ansehen (true) oder zurueck hinter den Kaempfer. */
+  onOverview(on: boolean): void;
+  /** Publikum auf den Raengen zeigen. */
+  onCrowd(on: boolean): void;
   onVoiceEngine(engine: EngineId | 'off'): void;
   /** Spracherkennung (wieder) einschalten, mit der Engine aus der Konfiguration. */
   onVoiceOn(): void;
@@ -116,6 +120,7 @@ export class Hud {
   private readonly dictationMode: boolean;
   private readonly voiceHeard: HTMLElement;
   private readonly defenseNow: HTMLElement;
+  private overviewBox: HTMLInputElement | null = null;
   private readonly defenseMean: HTMLElement;
   private readonly voiceOnButton: HTMLButtonElement;
   private lastTimer = '';
@@ -126,7 +131,8 @@ export class Hud {
     this.callbacks = callbacks;
     this.voiceAllowed = config.voice.engine !== 'off';
     this.dictationMode = config.voice.engine === 'dictation';
-    this.root = el('div', `hud voice-off${this.dictationMode ? ' no-level' : ''}`);
+    // "pre-start": Solange das Startbild steht, gehoert der Bildschirm der Arena.
+    this.root = el('div', `hud pre-start voice-off${this.dictationMode ? ' no-level' : ''}`);
     host.appendChild(this.root);
 
     // --- oben: zwei Kaempfer, dazwischen die Uhr ---------------------------
@@ -235,7 +241,7 @@ export class Hud {
     this.root.appendChild(this.buildDebug());
 
     // --- Startbild -----------------------------------------------------------
-    this.startOverlay = el('div', 'overlay');
+    this.startOverlay = el('div', 'overlay start-overlay');
     const start = el('div', 'panel start');
     start.appendChild(el('h1', '', 'VOICE ARENA'));
     start.appendChild(
@@ -315,12 +321,18 @@ export class Hud {
     this.startStatus.classList.toggle('error', error);
   }
 
+  /** Haekchen "Arena von aussen" nachfuehren, wenn das Spiel die Ansicht wechselt. */
+  setOverview(on: boolean): void {
+    if (this.overviewBox) this.overviewBox.checked = on;
+  }
+
   setStartBusy(busy: boolean): void {
     for (const b of this.startButtons) b.disabled = busy;
   }
 
   hideStart(): void {
     this.startOverlay.classList.add('hidden');
+    this.root.classList.remove('pre-start');
   }
 
   hideResult(): void {
@@ -673,6 +685,23 @@ export class Hud {
     });
     dirLabel.append(dir, el('span', '', 'Richtungsblock'));
     body.appendChild(dirLabel);
+
+    // Ansicht: die ganze Arena von aussen, Raenge mit oder ohne Publikum
+    const check = (text: string, checked: boolean, onChange: (on: boolean) => void): HTMLInputElement => {
+      const label = el('label', 'check');
+      const input = el('input');
+      input.type = 'checkbox';
+      input.checked = checked;
+      input.addEventListener('change', () => {
+        onChange(input.checked);
+        input.blur();
+      });
+      label.append(input, el('span', '', text));
+      body.appendChild(label);
+      return input;
+    };
+    this.overviewBox = check('Arena von aussen ansehen', true, cb.onOverview);
+    check('Publikum', true, cb.onCrowd);
 
     // Bot-Stufe
     const levelLabel = el('label');

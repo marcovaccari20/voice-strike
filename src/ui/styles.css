@@ -73,6 +73,11 @@ body {
   -webkit-user-select: none;
 }
 
+/* Vor dem Start bleiben die Tafeln weg: Man sieht die Arena von aussen. */
+.hud.pre-start > * {
+  display: none;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -766,6 +771,18 @@ body {
 
 .start h1.result-title.bad {
   color: var(--bad);
+}
+
+/* Breite Schirme: Das Startbild steht links, rechts daneben die ganze Arena. */
+@media (min-width: 1100px) and (min-height: 521px) {
+  .overlay.start-overlay {
+    justify-content: flex-start;
+    background: linear-gradient(90deg, var(--veil) 0%, var(--veil) 30%, transparent 52%);
+  }
+
+  .overlay.start-overlay .start {
+    width: min(500px, 100%);
+  }
 }
 
 /* ------------------------------------------- schmale und niedrige Schirme
