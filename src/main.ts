@@ -3,8 +3,8 @@
 import './ui/styles.css';
 import { parseConfig } from './combat';
 import { Game } from './game/game';
-import { buildBlockout } from './render/knight/blockout';
 import { knightFactory } from './render/knight/knightFighter';
+import { buildKnightMesh } from './render/knight/mesh';
 
 function showFatal(host: HTMLElement, message: string): void {
   const box = document.createElement('div');
@@ -30,9 +30,9 @@ async function boot(): Promise<void> {
     const response = await fetch('combat_config.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`combat_config.json nicht gefunden (HTTP ${response.status}).`);
     const config = parseConfig(await response.json());
-    // Hier wird die Figur gewaehlt. Fuer GLB-Modelle eine andere Fabrik
-    // uebergeben (siehe src/render/fighterVisual.ts).
-    const game = new Game(host, sceneHost, config, knightFactory(buildBlockout));
+    // Hier wird die Figur gewaehlt: der Ritter mit seinem Netz. Fuer ein
+    // fertiges GLB-Modell eine andere Fabrik uebergeben (src/render/fighterVisual.ts).
+    const game = new Game(host, sceneHost, config, knightFactory(buildKnightMesh));
     // Nur im Entwicklungsserver: Zugriff aus der Browser-Konsole zum Ausprobieren.
     if (import.meta.env.DEV) (window as unknown as { voiceArena?: Game }).voiceArena = game;
   } catch (error) {
