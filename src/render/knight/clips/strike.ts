@@ -99,10 +99,10 @@ const SHIELD: Strike = {
       channels: BLADE,
       track: [
         key(0),
-        key(0.13, { bladeX: -0.05, bladeY: 1, bladeZ: 0.25, bladeRoll: 0.2 }, 'in', 1),
-        key(0.28, { bladeX: -0.52, bladeY: 0.84, bladeZ: -0.1, bladeRoll: 0.5 }, 'out'),
-        key(0.8, { bladeX: -0.66, bladeY: 0.76, bladeZ: -0.04, bladeRoll: 0.5 }, 'linear'),
-        key(0.89, { bladeX: -0.35, bladeY: 0.4, bladeZ: -0.85, bladeRoll: 0.15 }, 'smooth'),
+        key(0.13, { bladeX: -0.05, bladeY: 1, bladeZ: 0.25, bladeRoll: -0.4 }, 'in', 1),
+        key(0.28, { bladeX: -0.52, bladeY: 0.84, bladeZ: -0.1, bladeRoll: -0.9 }, 'out'),
+        key(0.8, { bladeX: -0.66, bladeY: 0.76, bladeZ: -0.04, bladeRoll: -0.9 }, 'linear'),
+        key(0.89, { bladeX: -0.35, bladeY: 0.4, bladeZ: -0.85, bladeRoll: -0.2 }, 'smooth'),
         key(0.94, { bladeX: -0.47, bladeY: 0.6, bladeZ: -0.62 }, 'in'),
         key(0.985, { bladeX: -0.66, bladeY: 0.77, bladeZ: 0.47 }, 'linear', 0.3),
         key(1, { bladeX: -0.66, bladeY: 0.745, bladeZ: 0.49 }, 'linear'),
@@ -287,10 +287,10 @@ const SWORD: Strike = {
       track: [
         key(0),
         key(0.1, { bladeX: -0.1, bladeY: 1, bladeZ: 0.1 }, 'in', 1),
-        key(0.18, { bladeX: -0.45, bladeY: 0.88, bladeZ: 0.1 }, 'linear', 1),
-        key(0.29, { bladeX: -0.375, bladeY: 0.91, bladeZ: 0.15 }, 'out'),
-        key(0.78, { bladeX: -0.42, bladeY: 0.88, bladeZ: -0.04 }, 'linear'),
-        key(0.88, { bladeX: -0.52, bladeY: 0.7, bladeZ: -0.5 }, 'smooth'),
+        key(0.18, { bladeX: -0.45, bladeY: 0.88, bladeZ: 0.1, bladeRoll: -0.4 }, 'linear', 1),
+        key(0.29, { bladeX: -0.375, bladeY: 0.91, bladeZ: 0.15, bladeRoll: -0.8 }, 'out'),
+        key(0.78, { bladeX: -0.42, bladeY: 0.88, bladeZ: -0.04, bladeRoll: -0.8 }, 'linear'),
+        key(0.88, { bladeX: -0.52, bladeY: 0.7, bladeZ: -0.5, bladeRoll: -0.2 }, 'smooth'),
         key(0.935, { bladeX: -0.46, bladeY: 0.88, bladeZ: -0.26 }, 'in'),
         key(0.985, { bladeX: -0.1, bladeY: 0.79, bladeZ: 0.6 }, 'linear', 0.3),
         key(1, { bladeX: -0.09, bladeY: 0.76, bladeZ: 0.64 }, 'linear'),
@@ -418,7 +418,7 @@ const SWORD: Strike = {
 // ---------------------------------------------------------------------------
 
 const FISTS: Strike = {
-  launch: 0.6,
+  launch: 0.56,
   windup: [
     {
       // Die Faust reicht nicht weit: Er muss heran - Abdruck hinten, der rechte Fuss geht durch, der linke setzt zum Schlag vor.
@@ -426,9 +426,9 @@ const FISTS: Strike = {
       track: [
         key(0),
         key(0.28, { hipX: -0.03, hipY: 0.48, hipZ: -0.06, hipYaw: -0.4, hipPitch: 0.05 }, 'smooth'),
-        key(0.6, { hipX: -0.055, hipY: 0.45, hipZ: -0.11, hipYaw: -0.46, hipPitch: 0.04 }, 'linear'),
-        key(0.68, { hipX: 0.02, hipY: 0.47, hipZ: -0.015, hipYaw: -0.36, hipPitch: 0.08 }, 'in'),
-        key(0.8, { hipX: 0.01, hipY: 0.478, hipZ: 0.42, hipYaw: -0.14, hipPitch: 0.1 }, 'linear', 1),
+        key(0.56, { hipX: -0.055, hipY: 0.45, hipZ: -0.11, hipYaw: -0.46, hipPitch: 0.04 }, 'linear'),
+        key(0.65, { hipX: -0.02, hipY: 0.468, hipZ: -0.02, hipYaw: -0.38, hipPitch: 0.08 }, 'in'),
+        key(0.79, { hipX: 0.015, hipY: 0.478, hipZ: 0.42, hipYaw: -0.14, hipPitch: 0.1 }, 'linear', 1),
         key(0.89, { hipX: -0.02, hipY: 0.485, hipZ: 0.72, hipYaw: 0.14, hipPitch: 0.14 }, 'linear', 1),
         key(0.97, { hipX: 0.03, hipY: 0.476, hipZ: 0.93, hipYaw: 0.43, hipPitch: 0.18 }, 'linear', 0.5),
         key(1, { hipX: 0.03, hipY: 0.475, hipZ: 0.95, hipYaw: 0.45, hipPitch: 0.18 }, 'linear'),
@@ -440,7 +440,7 @@ const FISTS: Strike = {
       track: [
         key(0),
         key(0.26, { spinePitch: 0.06, spineYaw: -0.26, spineRoll: -0.03, shrugR: 0.7, shrugL: 0.3 }, 'smooth'),
-        key(0.6, { spinePitch: 0.03, spineYaw: -0.34, spineRoll: -0.05, shrugR: 0.8, shrugL: 0.4 }, 'linear'),
+        key(0.56, { spinePitch: 0.03, spineYaw: -0.34, spineRoll: -0.05, shrugR: 0.8, shrugL: 0.4 }, 'linear'),
         key(0.8, { spinePitch: 0.08, spineYaw: -0.44, spineRoll: -0.04, shrugR: 0.8, shrugL: 0.4 }, 'smooth'),
         key(0.88, { spinePitch: 0.1, spineYaw: -0.42, spineRoll: -0.03, shrugR: 0.9, shrugL: 0.4 }, 'smooth'),
         key(0.925, { spinePitch: 0.15, spineYaw: -0.22, spineRoll: -0.01, shrugR: 1, shrugL: 0.35 }, 'in'),
@@ -478,12 +478,12 @@ const FISTS: Strike = {
       channels: FOOT_R,
       track: [
         key(0),
-        key(0.6),
-        key(0.67, { footRPitch: 0.55 }, 'linear'),
-        key(0.69, { footRY: 0.02, footRPitch: 0.6 }, 'linear'),
-        key(0.745, { footRX: -0.16, footRZ: 0.2, footRY: 0.07, footRPitch: 0.2, footRYaw: -0.2 }, 'linear'),
-        key(0.8, { footRX: -0.15, footRZ: 0.63, footRY: 0.012, footRPitch: -0.2, footRYaw: -0.1 }, 'linear'),
-        key(0.82, { footRX: -0.15, footRZ: 0.63, footRYaw: -0.1 }, 'linear'),
+        key(0.56),
+        key(0.64, { footRPitch: 0.55 }, 'linear'),
+        key(0.66, { footRY: 0.02, footRPitch: 0.6 }, 'linear'),
+        key(0.725, { footRX: -0.16, footRZ: 0.2, footRY: 0.07, footRPitch: 0.2, footRYaw: -0.2 }, 'linear'),
+        key(0.79, { footRX: -0.15, footRZ: 0.63, footRY: 0.012, footRPitch: -0.2, footRYaw: -0.1 }, 'linear'),
+        key(0.81, { footRX: -0.15, footRZ: 0.63, footRYaw: -0.1 }, 'linear'),
         key(0.9, { footRX: -0.15, footRZ: 0.63, footRYaw: -0.1 }),
         key(0.97, { footRX: -0.15, footRZ: 0.63, footRYaw: -0.1, footRPitch: 0.75 }, 'linear'),
         key(1, { footRX: -0.15, footRZ: 0.63, footRYaw: -0.1, footRPitch: 0.8 }, 'linear'),
@@ -494,9 +494,9 @@ const FISTS: Strike = {
       channels: FOOT_L,
       track: [
         key(0),
-        key(0.76),
-        key(0.8, { footLPitch: 0.45 }, 'linear'),
-        key(0.82, { footLY: 0.02, footLPitch: 0.5 }, 'linear'),
+        key(0.75),
+        key(0.795, { footLPitch: 0.45 }, 'linear'),
+        key(0.815, { footLY: 0.02, footLPitch: 0.5 }, 'linear'),
         key(0.89, { footLZ: 0.66, footLY: 0.07, footLPitch: 0.1, footLYaw: 0.08 }, 'linear'),
         key(0.955, { footLZ: 1.08, footLY: 0.012, footLPitch: -0.2, footLYaw: 0.1 }, 'linear'),
         key(0.975, { footLZ: 1.08, footLYaw: 0.1 }, 'linear'),

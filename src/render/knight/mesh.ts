@@ -56,14 +56,14 @@ const TAU = Math.PI * 2;
 
 const TONE = {
   /** Helm: Zinn mit warmem Stich. */
-  helm: 0xd6bca4,
+  helm: 0xd9ba9f,
   /** Beinzeug: etwas kuehlerer Stahl. */
   steel: 0xb9aca4,
   /** Eisenschuhe: Stahl mit Bronzestich. */
-  sabaton: 0xbd9c88,
+  sabaton: 0xb69480,
   /** Kragen und Schulterplatten. */
-  copper: 0xd69a78,
-  skin: 0xdd9058,
+  copper: 0xd39a7e,
+  skin: 0xda915c,
   glove: 0xf2bd90,
   /** Waffenrock unter dem Wappenrock. */
   tunic: 0xa8623f,
@@ -664,7 +664,7 @@ function woodTexture(): CanvasTexture {
   return canvasTexture(size, size, (ctx) => {
     const random = randomSource(7);
     const planks = [0, 0.17, 0.38, 0.6, 0.81, 1];
-    const tones = ['#bd8350', '#b0774a', '#c28a55', '#b47b4b', '#ba8150'];
+    const tones = ['#c98d55', '#bd824f', '#cf955b', '#c08650', '#c78b55'];
     for (let i = 0; i < planks.length - 1; i++) {
       const x0 = planks[i] * size;
       const x1 = planks[i + 1] * size;
@@ -1405,12 +1405,14 @@ function gloveGeometry(): BufferGeometry {
       [0.076, -0.175],
       [0.083, -0.14],
       [0.094, -0.1],
-      [0.106, -0.068],
-      [0.113, -0.054],
-      [0.111, -0.043],
-      [0.101, -0.041],
-      [0.091, -0.052],
-      [0.08, -0.08],
+      [0.104, -0.073],
+      [0.109, -0.064],
+      [0.117, -0.058],
+      [0.119, -0.048],
+      [0.113, -0.04],
+      [0.102, -0.04],
+      [0.093, -0.052],
+      [0.082, -0.08],
     ],
     20,
   );
