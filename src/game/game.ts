@@ -41,6 +41,12 @@ export class Game {
   private botSpeechDelayMs: number;
   private keyboardDelayMs: number;
   private weaponId: string;
+  private windupScale: number;
+
+  /** Der letzte sichtbare Angriff des Bots, auf den der Spieler noch nicht geantwortet hat. */
+  private botAttack: { startMs: number; impactMs: number } | null = null;
+  /** Die letzten Abwehrzeiten (ms ab Ausholbeginn des Gegners). */
+  private readonly defenseDelays: number[] = [];
 
   private readonly pendingKeys: PendingKey[] = [];
   /** Sprechbeginn (performance.now) des letzten Sprachbefehls, der noch auf seine Aktion wartet. */
@@ -54,6 +60,7 @@ export class Game {
     this.botSpeechDelayMs = config.bot.speechDelayMs;
     this.keyboardDelayMs = config.input.keyboardDelayMs;
     this.weaponId = config.activeWeapon;
+    this.windupScale = config.tempo.windupScale;
     // Die Diktierfunktion muss beim Klick schon bereitstehen (siehe dictationEngine.ts).
     if (config.voice.engine === 'dictation') prepareDictation();
     for (const id of COMMAND_IDS) this.keyToCommand.set(config.commands[id].key, id);
@@ -80,6 +87,10 @@ export class Game {
       },
       onKeyboardDelay: (ms) => {
         this.keyboardDelayMs = ms;
+      },
+      onWindupScale: (scale) => {
+        this.windupScale = scale;
+        this.session.sim.setWindupScale(scale);
       },
       onVoiceEngine: (engine) => void this.switchVoice(engine),
       onVoiceOn: () => void this.switchVoice(this.preferredEngine()),
@@ -111,6 +122,7 @@ export class Game {
         if (reason === 'lowConfidence') this.hud.showToast(`Zu unsicher erkannt: „${heard}“`);
       },
       onHearing: (text) => this.hud.setHearing(text),
+      onConfidence: (confidence) => this.hud.setConfidence(confidence),
     });
 
     this.session = this.createSession();
@@ -131,6 +143,7 @@ export class Game {
     const config = this.weaponId === this.config.activeWeapon ? this.config : { ...this.config, activeWeapon: this.weaponId };
     const session = new CombatSession(config, { seed, bots: [null, this.botLevel] });
     session.sim.setDirectionalBlock(this.directionalBlock);
+    session.sim.setWindupScale(this.windupScale);
     const bot = session.bots[BOT];
     if (bot) bot.speechDelayMs = this.botSpeechDelayMs;
     return session;
@@ -145,6 +158,7 @@ export class Game {
   private restart(): void {
     this.pendingKeys.length = 0;
     this.voiceSpeechStartMs = -1;
+    this.botAttack = null;
     this.session = this.createSession();
     this.hud.hideResult();
     // Die Ereignisse des Vorlaufs (Runde 1) gleich anzeigen.
@@ -271,6 +285,7 @@ export class Game {
     if (events.length === 0) return;
     const nowMs = performance.now();
     for (const e of events) {
+      this.trackDefense(e);
       if (e.fighter !== PLAYER) continue;
       // Verzoegerung "Sprechbeginn bis Aktion": erst hier steht sie fest,
       // denn ein gepufferter Befehl startet spaeter als er erkannt wurde.
@@ -283,5 +298,31 @@ export class Game {
     }
     this.view.handleEvents(events);
     this.hud.handleEvents(events, this.session.sim, nowMs);
+  }
+
+  /**
+   * Misst, wie lange der Spieler vom Ausholbeginn des Bots bis zur eigenen
+   * Abwehr braucht - Reaktion, Sprechen und Erkennung zusammen. Gemessen in
+   * Simulationszeit, also unabhaengig davon, wie die Befehle hereinkommen.
+   */
+  private trackDefense(e: CombatEvent): void {
+    if (e.type !== 'ActionStarted') return;
+    const sim = this.session.sim;
+    if (e.fighter === BOT && (e.kind === 'attack' || e.kind === 'feint')) {
+      // Beim Scheinangriff zaehlt, was man sieht: der Einschlag, der zu erwarten waere.
+      const windupMs = e.kind === 'attack' || e.shownCommand === '' ? e.durationMs : sim.windupOf(BOT, e.shownCommand);
+      this.botAttack = { startMs: e.timeMs, impactMs: e.timeMs + windupMs };
+      return;
+    }
+    if (e.fighter !== PLAYER || (e.kind !== 'block' && e.kind !== 'roll') || !this.botAttack) return;
+    const attack = this.botAttack;
+    this.botAttack = null;
+    const delayMs = e.timeMs - attack.startMs;
+    // Eine Abwehr lange nach dem Angriff gehoert nicht mehr zu ihm.
+    if (delayMs > sim.config.speech.penaltyWindowMs * 3) return;
+    this.defenseDelays.push(delayMs);
+    if (this.defenseDelays.length > 5) this.defenseDelays.shift();
+    const mean = this.defenseDelays.reduce((a, b) => a + b, 0) / this.defenseDelays.length;
+    this.hud.setDefense(delayMs, attack.impactMs - e.timeMs, mean);
   }
 }

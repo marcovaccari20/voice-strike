@@ -92,6 +92,7 @@ Vorgaben: Fehlt ein Wert, bricht das Laden mit dem genauen Pfad ab
 | Abschnitt | Inhalt |
 | --- | --- |
 | `simulation` | Zeitschritt (10 ms), wie viel Rückstand nachgeholt wird |
+| `tempo` | Faktor auf alle Aushol-Zeiten (mehr Zeit zum Reagieren) |
 | `match` | Best of 3, Rundenzeit, Vorlauf, Pause nach der Runde |
 | `fighter` | Leben, Ausdauer, Regeneration, Befehlspuffer |
 | `block` | Richtungsblock, Parier-Fenster, Lähmung, falsche Richtung |
@@ -181,16 +182,24 @@ Umgebung, in der der Prototyp entstand, nicht.
 * Alle neun Wörter in zwei Stimmen erkannt (18 von 18), auch mit Rauschen
   unterlegt (18 von 18). Modell lädt in rund 2 s.
 * Vosk liefert sein Endergebnis von sich aus erst 1,1–1,4 s nach Sprechbeginn –
-  später als das 1200-ms-Fenster. Deshalb fordert die Pegelerkennung es beim
-  Sprechende sofort an. In der ganzen Kette (Mikrofon → „!" → Vosk → Aktion)
-  lagen dann **570–830 ms zwischen Sprechbeginn und Aktion**.
-* Der Bot spricht laut Vorgabe 450 ms ± 100 ms. Er ist damit schneller als die
-  gemessene Kette. Der Regler „Bot: simulierte Sprechzeit" gleicht das aus.
-* Vorläufige Ergebnisse kippen gelegentlich zwischen `block` und `bluff`.
-  Deshalb zählt in der Vorgabe-Einstellung nur das Endergebnis
-  (`voice.commit: "final"`). `"partial"` handelt schon auf ein vorläufiges
-  Ergebnis, das `voice.partialStableMs` lang gleich bleibt – auf dieses Risiko.
-  In der Messung brachte das keinen klaren Zeitgewinn (567–782 ms).
+  später als das 1200-ms-Fenster. Die Pegelerkennung fordert es deshalb beim
+  Sprechende sofort an; so kam es im Median nach 605–630 ms.
+* **Vorgabe ist seit dem 19.11.2026 `voice.commit: "partial"` mit
+  `voice.partialStableMs: 0`:** Das Spiel handelt beim ersten vorläufigen
+  Ergebnis, nicht erst beim Endergebnis (Marco: „sobald er das Wort erkennt,
+  sofort reagieren"). Reine Erkennung, 288 Wörter: erster Treffer im Median
+  nach 330–425 ms ab Sprechbeginn, spätestens nach rund 650 ms – ein Gewinn von
+  230–260 ms. Ganze Kette im Spiel (Mikrofon → „!" → Vosk → Aktion):
+  **330–590 ms**, vorher mit Endergebnis 570–830 ms. Die Testumgebung zeichnete
+  dabei nur 7–14 Bilder pro Sekunde, was die Kette verlängert; auf einem
+  Rechner mit Grafikkarte ist sie nicht gemessen.
+* Der Preis dafür: Der erste Treffer kann falsch sein. In den 288 Wörtern war
+  er immer richtig, in 54 Wörtern früherer Läufe kippte er dreimal zwischen
+  `block` und `bluff`. Und die Mindestsicherheit greift nicht mehr, weil es sie
+  erst im Endergebnis gibt: „hello" löste so `block` aus. Zurück geht es mit
+  `"commit": "final"`; ein Mittelweg ist `partialStableMs` über 0.
+* Der Bot spricht laut Vorgabe 450 ms ± 100 ms – das liegt jetzt im Bereich der
+  gemessenen Kette. Der Regler „Bot: simulierte Sprechzeit" verschiebt es.
 * Die Grammatik zwingt jedes Geräusch auf das ähnlichste Befehlswort: „black"
   wird `block`, „lift" wird `left`, „sleep" wird `sweep`, jeweils mit Sicherheit
   1,00. Unähnliches fällt durch („hello" → `block` mit 0,39 und damit unter
@@ -198,6 +207,24 @@ Umgebung, in der der Prototyp entstand, nicht.
 * Bei eindeutig gesprochenen Wörtern meldet Vosk fast immer 1,00. Die
   angezeigte Sicherheit sagt deshalb wenig; unter 1,00 lag sie nur mit Rauschen
   (0,72–0,82).
+
+### Wenn die Abwehr zu spät kommt
+
+Vom Ausholen des Gegners bis zur eigenen Abwehr vergehen Reaktion, Sprechen und
+Erkennung. Zusammen ist das leicht mehr als die 900–1000 ms, die ein Schlag
+laut Vorgabe ausholt – Marcos erster Versuch mit echter Stimme am 19.11.2026
+(Diktierfunktion) ergab genau das: Der Block kam nach dem Einschlag.
+
+* Das Sprachfeld zeigt unter **„Abwehr"**, wie viele Millisekunden nach dem
+  Ausholbeginn des Gegners die eigene Abwehr begann und wie viel das vor oder
+  nach dem Einschlag war, dazu das Mittel der letzten fünf. Gemessen wird in
+  Simulationszeit, für Stimme und Tastatur gleich.
+* `tempo.windupScale` (Debug-Feld: „Aushol-Zeit") streckt jedes Ausholen und den
+  Scheinangriff im selben Verhältnis. Block, Rolle und Parier-Fenster bleiben.
+  Faustregel: Mittel der Abwehr geteilt durch 900 ms, etwas aufgerundet.
+* Auf der Seite der Erkennung ist nichts mehr zu holen: Das Spiel handelt beim
+  ersten vorläufigen Ergebnis und im selben Aufruf. Was bleibt, sind Reaktion
+  und Sprechdauer des Menschen und die Laufzeit des Erkenners.
 
 ## Bot
 
@@ -223,7 +250,7 @@ gemessen.**
 
 ## Debug-Feld
 
-Links unter der eigenen Tafel: Richtungsblock an/aus, Bot-Stufe, Waffe, simulierte Sprechzeit des Bots,
+Links unter der eigenen Tafel: Richtungsblock an/aus, Bot-Stufe, Waffe, Aushol-Zeit, simulierte Sprechzeit des Bots,
 simulierte Sprechzeit der Tastatur (das „!" erscheint beim Tastendruck, der Befehl
 erst danach – so lässt sich die Sprachverzögerung mit der Tastatur nachstellen),
 Spracherkennung, Lärm neu messen, Neustart.

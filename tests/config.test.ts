@@ -14,6 +14,10 @@ describe('Konfiguration: Werte der Vorgabe', () => {
     expect(c.simulation.stepMs).toBe(10);
   });
 
+  it('Aushol-Zeiten gelten ungestreckt', () => {
+    expect(c.tempo.windupScale).toBe(1);
+  });
+
   it('Leben, Ausdauer, Regeneration', () => {
     expect(c.fighter.maxHealth).toBe(100);
     expect(c.fighter.maxStamina).toBe(100);

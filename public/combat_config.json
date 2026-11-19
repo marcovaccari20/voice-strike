@@ -6,6 +6,10 @@
     "maxCatchUpMs": 250
   },
 
+  "tempo": {
+    "windupScale": 1.0
+  },
+
   "match": {
     "bestOf": 3,
     "roundTimeMs": 90000,
@@ -208,11 +212,11 @@
     "engine": "auto",
     "language": "en-US",
     "minConfidence": 0.5,
-    "commit": "final",
-    "partialStableMs": 120,
+    "commit": "partial",
+    "partialStableMs": 0,
     "vosk": {
       "modelUrl": "models/vosk-model-small-en-us-0.15.tar.gz",
-      "feedMs": 30,
+      "feedMs": 20,
       "loadTimeoutMs": 90000
     },
     "mic": {

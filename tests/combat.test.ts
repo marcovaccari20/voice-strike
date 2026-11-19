@@ -825,6 +825,48 @@ describe('Best of 3', () => {
   });
 });
 
+describe('Tempo', () => {
+  it('der Faktor streckt jedes Ausholen', () => {
+    const sim = fightingSim((c) => {
+      c.tempo.windupScale = 1.5;
+    });
+    const c = sim.config;
+    expect(sim.windupOf(A, 'strike')).toBe(c.commands.strike.windupMs * 1.5);
+    sim.command(A, 'strike');
+    sim.advance(c.commands.strike.windupMs * 1.5 - c.simulation.stepMs);
+    expect(ofType(sim.drainEvents(), 'Hit')).toHaveLength(0);
+    sim.advance(c.simulation.stepMs);
+    expect(ofType(sim.drainEvents(), 'Hit')).toHaveLength(1);
+  });
+
+  it('Block, Rolle und Parier-Fenster bleiben unveraendert', () => {
+    const sim = fightingSim((c) => {
+      c.tempo.windupScale = 2;
+    });
+    const c = sim.config;
+    sim.command(A, 'strike');
+    sim.advance(sim.windupOf(A, 'strike') - c.block.perfectParryWindowMs);
+    sim.command(D, 'block');
+    expect(sim.fighters[D].stateEndMs - sim.timeMs).toBe(c.commands.block.activeMs);
+    sim.advance(c.block.perfectParryWindowMs);
+    expect(ofType(sim.drainEvents(), 'Parried')).toHaveLength(1);
+  });
+
+  it('der Scheinangriff dauert im selben Verhaeltnis laenger', () => {
+    const sim = fightingSim((c) => {
+      c.tempo.windupScale = 2;
+    });
+    sim.command(A, 'bluff');
+    expect(sim.fighters[A].stateEndMs - sim.timeMs).toBe(sim.config.commands.bluff.activeMs * 2);
+  });
+
+  it('der Faktor laesst sich im laufenden Kampf aendern', () => {
+    const sim = fightingSim();
+    sim.setWindupScale(1.8);
+    expect(sim.windupOf(A, 'kick')).toBe(sim.config.commands.kick.windupMs * 1.8);
+  });
+});
+
 describe('Zeitschritt', () => {
   it('rechnet in festen 10-ms-Schritten', () => {
     const sim = new CombatSim(loadConfig());

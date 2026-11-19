@@ -70,12 +70,15 @@ export class CombatSim {
   matchWinner = -1;
   /** Schalter "Richtungsblock"; Startwert aus der Konfiguration. */
   directionalBlock: boolean;
+  /** Faktor auf Aushol-Zeiten und Scheinangriff; Startwert aus der Konfiguration. */
+  windupScale: number;
 
   private events: CombatEvent[] = [];
 
   constructor(config: CombatConfig) {
     this.config = config;
     this.directionalBlock = config.block.directionalBlock;
+    this.windupScale = config.tempo.windupScale;
     this.fighters = [this.createFighter(0), this.createFighter(1)];
     this.beginRound(1);
   }
@@ -125,6 +128,11 @@ export class CombatSim {
 
   setDirectionalBlock(on: boolean): void {
     this.directionalBlock = on;
+  }
+
+  /** Gilt fuer alle Aktionen, die danach beginnen; laufende behalten ihre Zeit. */
+  setWindupScale(scale: number): void {
+    if (Number.isFinite(scale) && scale > 0) this.windupScale = scale;
   }
 
   // -------------------------------------------------------------------------
@@ -224,7 +232,7 @@ export class CombatSim {
   windupOf(fighter: number, cmd: CommandId): number {
     const def = this.config.commands[cmd];
     const factor = def.usesWeapon ? this.weaponOf(fighter).windupFactor : 1;
-    return Math.round(def.windupMs * factor);
+    return Math.round(def.windupMs * factor * this.windupScale);
   }
 
   /** Ausdauerkosten von `cmd` als Angriff/Rolle/Scheinangriff (nicht als Richtungsblock). */
@@ -357,8 +365,9 @@ export class CombatSim {
       f.state = 'roll';
       f.stateEndMs = now + durationMs;
     } else {
-      // Scheinangriff: sieht aus wie der nachgeahmte Befehl.
-      durationMs = def.activeMs;
+      // Scheinangriff: sieht aus wie der nachgeahmte Befehl - und dauert im
+      // selben Verhaeltnis laenger, wenn die Aushol-Zeiten gestreckt sind.
+      durationMs = Math.round(def.activeMs * this.windupScale);
       f.state = 'feint';
       f.stateEndMs = now + durationMs;
       if (def.mimics !== '') {

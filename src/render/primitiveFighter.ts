@@ -38,7 +38,7 @@ const SHIELD_RADIUS = 0.3;
 /** Wie weit die linke Hand unter der rechten am Griff sitzt. */
 const GRIP_OFFSET = 0.13;
 /** Zeitkonstante, mit der die Figur ihrer Zielhaltung folgt (s). */
-const FOLLOW_SECONDS = 0.045;
+const FOLLOW_SECONDS = 0.03;
 /** Hoehe des Warnzeichens ueber dem Kopf (m). */
 const HEAD_ANCHOR_UP = 0.42;
 

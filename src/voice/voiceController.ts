@@ -38,6 +38,11 @@ export interface VoiceCallbacks {
   onNoCommand(heard: string, reason: 'unknown' | 'lowConfidence'): void;
   /** Der gerade gehoerte Text, vorlaeufig oder endgueltig (nur Anzeige). */
   onHearing(text: string): void;
+  /**
+   * Die Sicherheit steht erst im Endergebnis. Wurde der Befehl schon auf das
+   * vorlaeufige Ergebnis hin ausgefuehrt, wird sie hier nachgereicht.
+   */
+  onConfidence(confidence: number): void;
 }
 
 const CALIBRATING_TEXT = 'Umgebungslärm wird gemessen – bitte kurz still sein …';
@@ -288,9 +293,14 @@ export class VoiceController {
 
     if (!result.final) {
       if (!usePartial) return;
-      // Erst handeln, wenn sich das vorlaeufige Ergebnis nicht mehr aendert.
+      // Mit Wartezeit erst handeln, wenn sich das vorlaeufige Ergebnis nicht mehr aendert.
       const signature = found.map((f) => f.command).join(' ');
       this.partialFound = found;
+      if (this.config.voice.partialStableMs <= 0) {
+        // Ohne Wartezeit: sofort handeln, noch in diesem Aufruf.
+        this.emitNew(found, now, false);
+        return;
+      }
       if (signature !== this.partialSignature) {
         this.partialSignature = signature;
         this.partialSinceMs = now;
@@ -309,8 +319,12 @@ export class VoiceController {
     }
 
     window.clearTimeout(this.partialTimer);
+    const alreadyActed = this.consumedCount;
     this.emitNew(found, now, true);
     this.textSpeechOpen = false;
+    if (alreadyActed > 0 && found.length >= alreadyActed && found[alreadyActed - 1].confidence >= 0) {
+      this.callbacks.onConfidence(found[alreadyActed - 1].confidence);
+    }
     if (!this.utteranceHadCommand && heard !== '') {
       // Etwas gehoert, aber kein Befehl daraus geworden: unbekanntes Wort
       // oder ein Befehlswort unter der Mindestsicherheit.

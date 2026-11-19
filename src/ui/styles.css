@@ -393,6 +393,14 @@ body {
   color: var(--gold);
 }
 
+.defense-now {
+  color: var(--good);
+}
+
+.defense-now.late {
+  color: var(--bad);
+}
+
 .voice-heard {
   color: var(--text);
   font-weight: 600;
@@ -571,7 +579,7 @@ body {
   left: var(--gutter-left);
   top: 132px;
   width: 270px;
-  max-height: calc(100% - 132px - 252px);
+  max-height: calc(100% - 132px - 296px);
   overflow: auto;
   font-size: 12px;
   pointer-events: auto;

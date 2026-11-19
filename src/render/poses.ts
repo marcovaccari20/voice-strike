@@ -373,7 +373,7 @@ const SHIELD_CARRY_CLIPS: ReadonlySet<string> = new Set([
 ]);
 
 /** So schnell steht die Blockhaltung (ms). Reine Darstellung; die Regel gilt ab Befehl. */
-const BLOCK_SNAP_MS = 90;
+const BLOCK_SNAP_MS = 50;
 
 const ROLL_TUCK = pose({
   pelvisY: 0.46, pivotY: 0.46, torsoPitch: 1.0, torsoYaw: 0, headPitch: 0.5, headYaw: 0,

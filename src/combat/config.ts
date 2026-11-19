@@ -121,6 +121,11 @@ export interface VoiceConfig {
 export interface CombatConfig {
   version: number;
   simulation: { stepMs: number; maxCatchUpMs: number };
+  /**
+   * `windupScale`: Faktor auf alle Aushol-Zeiten und auf die Dauer des
+   * Scheinangriffs. 1 = Werte der Befehle; groesser = mehr Zeit zum Reagieren.
+   */
+  tempo: { windupScale: number };
   match: {
     bestOf: number;
     roundTimeMs: number;
@@ -329,6 +334,7 @@ export function parseConfig(raw: unknown): CombatConfig {
   const root = raw as Json;
 
   const simulation = obj(root, 'simulation', '');
+  const tempo = obj(root, 'tempo', '');
   const match = obj(root, 'match', '');
   const fighter = obj(root, 'fighter', '');
   const block = obj(root, 'block', '');
@@ -395,6 +401,7 @@ export function parseConfig(raw: unknown): CombatConfig {
   return {
     version: num(root, 'version', ''),
     simulation: { stepMs, maxCatchUpMs: num(simulation, 'maxCatchUpMs', 'simulation.', stepMs) },
+    tempo: { windupScale: num(tempo, 'windupScale', 'tempo.', 0.25, 5) },
     match: {
       bestOf,
       roundTimeMs: num(match, 'roundTimeMs', 'match.', 1),

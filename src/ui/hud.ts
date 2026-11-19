@@ -29,6 +29,8 @@ export interface HudCallbacks {
   onBotLevel(level: BotLevelId): void;
   onBotSpeechDelay(ms: number): void;
   onKeyboardDelay(ms: number): void;
+  /** Faktor auf alle Aushol-Zeiten. */
+  onWindupScale(scale: number): void;
   onVoiceEngine(engine: EngineId | 'off'): void;
   /** Spracherkennung (wieder) einschalten, mit der Engine aus der Konfiguration. */
   onVoiceOn(): void;
@@ -113,6 +115,8 @@ export class Hud {
   /** true bei voice.engine = "dictation": Sprache ueber claude.ai, ohne eigenes Mikrofon. */
   private readonly dictationMode: boolean;
   private readonly voiceHeard: HTMLElement;
+  private readonly defenseNow: HTMLElement;
+  private readonly defenseMean: HTMLElement;
   private readonly voiceOnButton: HTMLButtonElement;
   private lastTimer = '';
   private lastRound = '';
@@ -169,6 +173,16 @@ export class Hud {
     heard.appendChild(el('span', '', 'Gehört'));
     this.voiceHeard = el('span', 'voice-heard', '–');
     heard.appendChild(this.voiceHeard);
+    // Wie lange es vom Ausholen des Gegners bis zur eigenen Abwehr dauert:
+    // die Zahl, an der sich die Aushol-Zeit einstellen laesst.
+    const defense = el('div', 'kv');
+    defense.appendChild(el('span', '', 'Abwehr'));
+    this.defenseNow = el('span', 'defense-now', '–');
+    defense.appendChild(this.defenseNow);
+    const mean = el('div', 'kv');
+    mean.appendChild(el('span', '', 'Mittel (5)'));
+    this.defenseMean = el('span', '', '–');
+    mean.appendChild(this.defenseMean);
     const level = el('div', 'kv level-row');
     level.appendChild(el('span', '', 'Mikrofonpegel'));
     level.appendChild(el('span', '', ''));
@@ -186,7 +200,7 @@ export class Hud {
       this.voiceOnButton.blur();
     });
     this.voiceOnButton.hidden = !this.voiceAllowed;
-    voice.append(word, conf, lat, heard, level, meter, this.voiceStatus, this.voiceOnButton);
+    voice.append(word, conf, lat, heard, defense, mean, level, meter, this.voiceStatus, this.voiceOnButton);
     this.root.appendChild(voice);
 
     // --- Befehlsliste --------------------------------------------------------
@@ -483,6 +497,11 @@ export class Hud {
     this.setLatency(latencyMs);
   }
 
+  /** Sicherheit nachreichen, wenn der Befehl schon vor dem Endergebnis ausgefuehrt wurde. */
+  setConfidence(confidence: number): void {
+    this.voiceConfidence.textContent = `${Math.round(confidence * 100)} %`;
+  }
+
   setLatency(latencyMs: number): void {
     this.voiceLatency.textContent = latencyMs >= 0 ? `${Math.round(latencyMs)} ms` : '–';
   }
@@ -518,6 +537,19 @@ export class Hud {
 
   setEngine(engine: EngineId | 'off'): void {
     this.engineSelect.value = engine;
+  }
+
+  /**
+   * Die eigene Abwehr begann `delayMs` nach dem Ausholbeginn des Gegners;
+   * `marginMs` > 0: so viel vor dem Einschlag, < 0: so viel zu spaet.
+   */
+  setDefense(delayMs: number, marginMs: number, meanMs: number): void {
+    const late = marginMs < 0;
+    this.defenseNow.textContent = `${Math.round(delayMs)} ms · ${
+      late ? `${Math.round(-marginMs)} zu spät` : `${Math.round(marginMs)} vor Einschlag`
+    }`;
+    this.defenseNow.classList.toggle('late', late);
+    this.defenseMean.textContent = `${Math.round(meanMs)} ms`;
   }
 
   /** Pegel und Schwelle; die Anzeige ist wurzelskaliert, damit leise Pegel sichtbar bleiben. */
@@ -681,29 +713,43 @@ export class Hud {
     const slider = (
       title: string,
       value: number,
-      onChange: (ms: number) => void,
+      range: { min: number; max: number; step: number },
+      format: (v: number) => string,
+      onChange: (v: number) => void,
     ): HTMLElement => {
       const label = el('label');
       const head = el('span', '', `${title}: `);
-      const shown = el('span', 'debug-value', `${value} ms`);
+      const shown = el('span', 'debug-value', format(value));
       head.appendChild(shown);
       const input = el('input');
       input.type = 'range';
-      input.min = '0';
-      input.max = '1000';
-      input.step = '10';
+      input.min = String(range.min);
+      input.max = String(range.max);
+      input.step = String(range.step);
       input.value = String(value);
       input.addEventListener('input', () => {
-        const ms = Number(input.value);
-        shown.textContent = `${ms} ms`;
-        onChange(ms);
+        const v = Number(input.value);
+        shown.textContent = format(v);
+        onChange(v);
       });
       input.addEventListener('change', () => input.blur());
       label.append(head, input);
       return label;
     };
-    body.appendChild(slider('Bot: simulierte Sprechzeit', cfg.bot.speechDelayMs, cb.onBotSpeechDelay));
-    body.appendChild(slider('Tastatur: simulierte Sprechzeit', cfg.input.keyboardDelayMs, cb.onKeyboardDelay));
+    const ms = (v: number) => `${v} ms`;
+    const delay = { min: 0, max: 1000, step: 10 };
+    // Mehr Zeit zwischen Ausholen und Einschlag: der Hebel gegen die Sprachverzoegerung.
+    body.appendChild(
+      slider(
+        'Aushol-Zeit',
+        cfg.tempo.windupScale,
+        { min: 1, max: 3, step: 0.1 },
+        (v) => `×${v.toFixed(1)} (Schlag ${Math.round(cfg.commands.strike.windupMs * v)} ms)`,
+        cb.onWindupScale,
+      ),
+    );
+    body.appendChild(slider('Bot: simulierte Sprechzeit', cfg.bot.speechDelayMs, delay, ms, cb.onBotSpeechDelay));
+    body.appendChild(slider('Tastatur: simulierte Sprechzeit', cfg.input.keyboardDelayMs, delay, ms, cb.onKeyboardDelay));
 
     // Spracherkennung
     const engineLabel = el('label');
