@@ -264,6 +264,65 @@ Blendbogen mit vier Holztoren, die Loge mit Thron, zwei Waffenständer.
 * Die Vorlage zeigt leere Ränge. Das Publikum ist trotzdem an (Marcos Wunsch
   von vorher) und lässt sich im Debug-Feld ausschalten.
 
+## Die Ritter
+
+> **Stand 19.11.2026: in Arbeit.** Fertig ist das Skelett mit Gelenkrechnung.
+> Aussehen (`mesh.ts`) und Bewegungsabläufe (`clips/`) werden gerade
+> ausgearbeitet; bis dahin zeigt das Spiel die Gelenkfigur, und die meisten
+> Abläufe stehen nur in der Grundhaltung. Der Rest dieses Abschnitts
+> beschreibt den Zielzustand.
+
+Die beiden Kämpfer sind Ritter nach Marcos Bildvorlage vom 19.11.2026: blau der
+eigene, rot der Bot. Die Vorlage sind zwei **Bilder** – daraus lässt sich kein
+3D-Modell entnehmen. Die Figuren sind deshalb in `src/render/knight/` aus
+Grundformen nachgebaut und haben ein eigenes Skelett; es gibt weiterhin keine
+externen Modell- oder Animationsdateien.
+
+| Datei | Aufgabe |
+|---|---|
+| `proportions.ts` | Körpermasse (gedrungene Spielfigur: Helm ein Drittel der Höhe) und grobe Hüllen der dicken Körperteile |
+| `skeleton.ts` | 28 Knochen in echter Hierarchie (Namen nach Unitys Humanoid-Schema) und die Gelenkrechnung |
+| `pose.ts` | Haltung als flacher Satz Zahlen, Stützhaltungen, Zeitverläufe, Nachführen |
+| `clips/` | die 17 Bewegungsabläufe |
+| `dynamics.ts` | Federketten für Helmbusch und Wappenrock |
+| `mesh.ts` | das sichtbare Netz, hängt nur an den Knochen |
+| `blockout.ts` | Gelenkfigur ohne Verkleidung, zum Prüfen von Bewegungen |
+| `knightFighter.ts` | fügt alles zur Figur für die Szene zusammen |
+
+Was die Bewegung trägt:
+
+* **Füsse stehen.** Becken und Füsse sind im Raum der Figur angegeben, Hände,
+  Klinge und Schild im Raum des Brustkorbs. Ein Fuss, der in zwei
+  Stützhaltungen dieselben Werte hat, rutscht nicht – ein Ausfall ist ein
+  Schritt, kein Verschieben der ganzen Figur.
+* **Gelenke werden gerechnet.** Ellbogen und Knie aus Schulter/Hand bzw.
+  Hüfte/Fuss (Zwei-Knochen-IK). Reicht ein Bein nicht, hebt sich die Ferse;
+  die Sohle sinkt nie in den Boden.
+* **Bögen statt Ecken.** Zwischen Stützhaltungen läuft jeder Kanal auf einer
+  Hermite-Kurve; Zwischenhaltungen lassen den Schwung durch.
+* **Masse.** Die Figur folgt ihrer Zielhaltung über gedämpfte Federn: der
+  Körper straff, Klinge, Helm und Schild schwingen leicht nach. Helmbusch und
+  Wappenrock sind Federketten und pendeln von selbst.
+* **Von selbst dazu:** Atmen, der Blick folgt dem Helm des Gegners, ein
+  Treffer gibt dem Rumpf einen Ruck.
+* **Drei Ausrüstungen** je Ablauf: Schwert + Schild, nur Schwert, Fäuste.
+
+Der Einschlag eines Angriffs liegt weiterhin genau am Ende des Ausholens; die
+Ausholhaltung jedes Angriffs steht früh und unterscheidet sich von allen
+anderen – das ist Spielregel, nicht Geschmack, und wird geprüft (siehe Tests).
+
+Der Schild erscheint nur mit der Waffe „Schwert + Schild" (Debug-Feld). In
+`combat_config.json` ist nach Vorgabe das Schwert allein eingestellt.
+
+### Figuren-Werkstatt
+
+`npm run dev`, dann **http://localhost:5173/figur.html**: ein Ritter allein vor
+neutralem Grund. Ablauf wählen, in Echtzeit oder bis auf ein Zehntel
+verlangsamt abspielen, Kamera mit der Maus drehen, Ausrüstung wechseln,
+Knochen einblenden, zwischen Ritter und Gelenkfigur umschalten. Die Dauern
+kommen aus `combat_config.json`. Die Seite gehört nicht zum Spiel und wird von
+`npm run build` nicht mitgebaut.
+
 ## Debug-Feld
 
 Links unter der eigenen Tafel: Richtungsblock an/aus, Arena von aussen, Publikum, Bot-Stufe, Waffe, Aushol-Zeit, simulierte Sprechzeit des Bots,
@@ -287,11 +346,13 @@ src/combat/                  Kampflogik – ohne Three.js, ohne Browser
   bot.ts                     Bot in drei Stufen
   rng.ts                     Zufall (xorshift32), wiederholbar
   session.ts                 Simulation + Bots im festen Takt
-src/render/                  Three.js: Amphitheater mit Publikum, Figuren, Effekte
+src/render/                  Three.js: Amphitheater mit Publikum, Effekte, Kamera
+  knight/                    die Ritter: Skelett, Haltungen, Abläufe, Netz
+src/tools/figur.ts           Figuren-Werkstatt (figur.html), nur Entwicklung
 src/voice/                   Mikrofon, Pegelerkennung, Vosk, Web Speech API, Diktierfunktion
 src/ui/                      HUD, Debug-Feld, Start- und Schlussbild
 src/game/game.ts             verbindet alles
-tests/                       vitest, nur Kampflogik
+tests/                       vitest: Kampflogik und Bewegungsprüfung
 ```
 
 ### Kampflogik
@@ -327,12 +388,16 @@ prüft das hart: Der Ordner wird ein zweites Mal **ohne DOM-Typen** geprüft
 
 Die Szene kennt eine Figur nur über `FighterVisual`
 (`src/render/fighterVisual.ts`): `root`, `update(eingabe, dt)`, drei Ankerpunkte,
-`dispose`. `update` bekommt `clip`, `phase`, `progress` (0..1) und `timeMs`.
-Für ein Modell eine zweite Fabrik schreiben, die es lädt und je `clip` den
-gleichnamigen AnimationClip auf `progress` stellt, und sie in `src/main.ts`
-anstelle von `createPrimitiveFighter` übergeben. Clips: `idle`, `strike`, `left`,
+`dispose`. `update` bekommt `clip`, `phase`, `progress` (0..1), `timeMs` und den
+Punkt, auf den die Figur schaut. Für ein fertiges Modell eine zweite Fabrik
+schreiben, die es lädt und je `clip` den gleichnamigen AnimationClip auf
+`progress` stellt, und sie in `src/main.ts` anstelle von
+`knightFactory(buildKnightMesh)` übergeben. Clips: `idle`, `strike`, `left`,
 `right`, `kick`, `sweep`, `charge`, `block_high`, `block_left`, `block_right`,
 `roll`, `stagger`, `stunned`, `paralyzed`, `down`, `ko`, `victory`.
+
+Nur das Aussehen tauschen geht einfacher: `mesh.ts` ersetzen. Es hängt Teile an
+die Knochen und kennt keine Haltungen; Skelett und Abläufe bleiben.
 
 Die Figur schaut in ihrem eigenen Koordinatensystem nach +Z, ihre linke Seite
 ist +X. `left` holt auf *ihrer* linken Seite aus.
@@ -343,14 +408,32 @@ ist +X. `left` holt auf *ihrer* linken Seite aus.
 npm test
 ```
 
-Nur Kampflogik (`tests/`): perfektes Parieren und zu früher Block, falsche
+Kampflogik: perfektes Parieren und zu früher Block, falsche
 Blockrichtung, `kick` und `charge` brechen den Block, `roll` gegen `sweep`,
 Unterbrechung beim Ausholen, Ablehnung ohne Ausdauer, Schwert zerbricht und
 Faustwerte gelten, Strafe für Sprechen ohne Befehl, Best of 3 endet korrekt.
 Dazu Befehlspuffer, Scheinangriff, Regeneration, Determinismus und der Bot
 (Sprech- und Reaktionszeit, alle Stufen spielen ein Match zu Ende).
 
-Grafik, Oberfläche und Sprache haben keine automatischen Tests.
+Bewegungsprüfung (`tests/animation.test.ts`): rechnet jeden Ablauf in hundert
+Schritten und für alle drei Ausrüstungen durch das Skelett und prüft, was sich
+messen lässt:
+
+* Hände und Füsse erreichen ihre Zielpunkte (keine Haltung jenseits der
+  Armlänge).
+* Ein flach aufgesetzter Fuss rutscht nicht.
+* Klinge, Hände und Schild stecken nicht im eigenen Helm, Rumpf oder Schild.
+* Das Becken bleibt über den Füssen.
+* Ausholen beginnt in der Grundhaltung, der Nachlauf schliesst an den
+  Einschlag an und endet in der Grundhaltung.
+* Jeder Angriff trifft im Augenblick des Einschlags den Gegner dort, wo die
+  Regel es sagt (`strike` Kopf und Schultern, `left`/`right` Rumpf von der
+  angesagten Seite, `kick` Leib, `sweep` Schienbein, `charge` Rumpf).
+* Jedes Ausholen ist früh von jedem anderen zu unterscheiden.
+
+Ob eine Bewegung **gut aussieht**, prüft das nicht – das entscheidet das Auge
+in der Figuren-Werkstatt. Oberfläche und Sprache haben keine automatischen
+Tests.
 
 ## Abhängigkeiten
 
