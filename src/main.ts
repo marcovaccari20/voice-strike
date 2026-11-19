@@ -3,7 +3,8 @@
 import './ui/styles.css';
 import { parseConfig } from './combat';
 import { Game } from './game/game';
-import { createPrimitiveFighter } from './render/primitiveFighter';
+import { buildBlockout } from './render/knight/blockout';
+import { knightFactory } from './render/knight/knightFighter';
 
 function showFatal(host: HTMLElement, message: string): void {
   const box = document.createElement('div');
@@ -31,7 +32,7 @@ async function boot(): Promise<void> {
     const config = parseConfig(await response.json());
     // Hier wird die Figur gewaehlt. Fuer GLB-Modelle eine andere Fabrik
     // uebergeben (siehe src/render/fighterVisual.ts).
-    const game = new Game(host, sceneHost, config, createPrimitiveFighter);
+    const game = new Game(host, sceneHost, config, knightFactory(buildBlockout));
     // Nur im Entwicklungsserver: Zugriff aus der Browser-Konsole zum Ausprobieren.
     if (import.meta.env.DEV) (window as unknown as { voiceArena?: Game }).voiceArena = game;
   } catch (error) {

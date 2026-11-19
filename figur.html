@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Arena - Figuren-Werkstatt</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body { margin: 0; height: 100%; background: #d9d9dc; color: #1d1d22; font: 14px/1.4 system-ui, sans-serif; }
+      #stage { position: fixed; inset: 0; }
+      #stage canvas { display: block; width: 100%; height: 100%; }
+      #bar { position: fixed; left: 12px; top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        max-width: calc(100% - 24px); padding: 8px 10px; background: rgba(255, 255, 255, 0.86); border-radius: 8px; }
+      #bar label { display: flex; gap: 4px; align-items: center; }
+      #bar select, #bar button, #bar input { font: inherit; }
+      #info { position: fixed; left: 12px; bottom: 12px; padding: 6px 10px; background: rgba(255, 255, 255, 0.86);
+        border-radius: 8px; font-variant-numeric: tabular-nums; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="bar"></div>
+    <div id="info"></div>
+    <script type="module" src="/src/tools/figur.ts"></script>
+  </body>
+</html>

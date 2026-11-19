@@ -53,7 +53,7 @@ export class Game {
   private voiceSpeechStartMs = -1;
   private readonly point: ScreenPoint = { x: 0, y: 0, visible: false };
 
-  constructor(host: HTMLElement, sceneHost: HTMLElement, config: CombatConfig, factory?: FighterVisualFactory) {
+  constructor(host: HTMLElement, sceneHost: HTMLElement, config: CombatConfig, factory: FighterVisualFactory) {
     this.config = config;
     this.botLevel = config.bot.defaultLevel;
     this.directionalBlock = config.block.directionalBlock;

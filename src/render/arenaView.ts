@@ -18,11 +18,14 @@ import type { CombatEvent, CombatSim } from '../combat';
 import { resolveAnim } from './animState';
 import { ARENA_HEIGHT, ARENA_OUTER_RADIUS, ARENA_TURN, buildArena, type ArenaScene } from './arena';
 import type { FighterAnimInput, FighterVisual, FighterVisualFactory } from './fighterVisual';
-import { createPrimitiveFighter } from './primitiveFighter';
+import { FIGHTER_GAP } from './stage';
 
-/** Abstand der beiden Kaempfer (m). Die Angriffshaltungen in poses.ts sind darauf abgestimmt. */
-export const FIGHTER_GAP = 2.5;
 const PLAYER = 0;
+/** Der Blick geht auf den Helm des Gegners: so weit unter dessen Warnzeichen (m). */
+const FOCUS_BELOW_ANCHOR = 0.6;
+/** Farben der beiden Ritter wie in der Vorlage. */
+const PLAYER_LOOK = { color: 0x2c3f7c, accent: 0xe2a24a, plume: 0xb23a2c };
+const OPPONENT_LOOK = { color: 0xc8442f, accent: 0xe2a24a, plume: 0xb23a2c };
 
 /** Aussenansicht: Neigung und Oeffnungswinkel wie in der Vorlage (fast isometrisch). */
 const OVERVIEW_TILT_DEG = 32;
@@ -64,8 +67,8 @@ export class ArenaView {
   // Schraeg hinter der rechten Schulter des Spielers: Er steht links im
   // Bild, der Gegner frei sichtbar rechts davon.
   // Der Blick geht nur leicht abwaerts, damit ueber der Mauer die Raenge im Bild sind.
-  private readonly cameraBase = new Vector3(3.0, 2.3, FIGHTER_GAP / 2 + 3.2);
-  private readonly cameraTarget = new Vector3(-0.25, 1.75, -FIGHTER_GAP / 2 + 0.75);
+  private readonly cameraBase = new Vector3(2.7, 2.15, FIGHTER_GAP / 2 + 3.5);
+  private readonly cameraTarget = new Vector3(-0.2, 1.3, -FIGHTER_GAP / 2 + 0.55);
   private readonly arena: ArenaScene;
 
   // Blick von aussen wie in der Vorlage: von vorn, schraeg von oben, langes
@@ -97,9 +100,11 @@ export class ArenaView {
     flash: 0,
     weaponBroken: false,
     shield: false,
+    focus: null,
   };
+  private readonly focus = [new Vector3(), new Vector3()];
 
-  constructor(host: HTMLElement, factory: FighterVisualFactory = createPrimitiveFighter) {
+  constructor(host: HTMLElement, factory: FighterVisualFactory) {
     this.host = host;
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -111,10 +116,10 @@ export class ArenaView {
     this.arena = buildArena(this.scene);
 
     // Spieler vorn (blau), mit dem Ruecken zur Kamera; Gegner gegenueber (rot).
-    const player = factory({ color: 0x2f6fb5, accent: 0xf2c14e });
+    const player = factory(PLAYER_LOOK);
     player.root.position.set(0, 0, FIGHTER_GAP / 2);
     player.root.rotation.y = Math.PI;
-    const opponent = factory({ color: 0xb53a2f, accent: 0x2b2b2b });
+    const opponent = factory(OPPONENT_LOOK);
     opponent.root.position.set(0, 0, -FIGHTER_GAP / 2);
     this.fighters = [player, opponent];
     this.scene.add(player.root, opponent.root);
@@ -222,6 +227,12 @@ export class ArenaView {
   frame(sim: CombatSim, simTimeMs: number, dtSeconds: number): void {
     this.clockMs += dtSeconds * 1000;
 
+    // Jeder behaelt den Helm des anderen im Blick (Stand des vorigen Bildes).
+    for (let i = 0; i < 2; i++) {
+      this.fighters[i].getHeadAnchor(this.focus[i]);
+      this.focus[i].y -= FOCUS_BELOW_ANCHOR;
+    }
+
     for (let i = 0; i < 2; i++) {
       const resolved = resolveAnim(sim, i, simTimeMs);
       this.flash[i] = Math.max(0, this.flash[i] - dtSeconds / FLASH_SECONDS);
@@ -234,6 +245,7 @@ export class ArenaView {
       this.anim.flash = this.flash[i];
       this.anim.weaponBroken = sim.fighters[i].weaponBroken;
       this.anim.shield = sim.weaponOf(i).shield;
+      this.anim.focus = this.focus[1 - i];
       if (resolved.clip !== 'ko') this.holdClip[i] = '';
       this.fighters[i].update(this.anim, dtSeconds);
     }

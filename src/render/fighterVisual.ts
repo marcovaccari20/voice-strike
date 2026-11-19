@@ -1,10 +1,10 @@
 // Die Naht zwischen Spiel und Figur.
 //
 // Die Szene kennt eine Figur nur ueber `FighterVisual`. Heute steckt dahinter
-// eine Figur aus Grundformen (primitiveFighter.ts), spaeter ein GLB-Modell:
-// Dazu eine zweite Fabrik schreiben, die das Modell laedt und in `update` je
-// `clip` den passenden AnimationClip auf `progress` bzw. `timeMs` stellt, und
-// sie in main.ts an `ArenaView` uebergeben. Am Spiel aendert sich nichts.
+// der Ritter mit eigenem Skelett (render/knight). Fuer ein fertiges GLB-Modell
+// eine zweite Fabrik schreiben, die das Modell laedt und in `update` je `clip`
+// den passenden AnimationClip auf `progress` bzw. `timeMs` stellt, und sie in
+// main.ts an `ArenaView` uebergeben. Am Spiel aendert sich nichts.
 
 import type { Object3D, Vector3 } from 'three';
 
@@ -53,13 +53,20 @@ export interface FighterAnimInput {
   weaponBroken: boolean;
   /** Traegt links einen Schild und blockt damit (Waffe "Schwert + Schild"). */
   shield: boolean;
+  /**
+   * Worauf die Figur schaut, in Weltkoordinaten - ueblicherweise der Kopf des
+   * Gegners. `null` = geradeaus.
+   */
+  focus: Vector3 | null;
 }
 
 export interface FighterVisualOptions {
-  /** Farbe des Wamses. */
+  /** Farbe des Wappenrocks und des Schildkreuzes. */
   color: number;
-  /** Akzentfarbe (Helmbusch, Schaerpe). */
+  /** Farbe der Borte. */
   accent: number;
+  /** Farbe des Helmbuschs. */
+  plume: number;
 }
 
 export interface FighterVisual {
